@@ -1,0 +1,18 @@
+# Logitech (Saitek) Pro Flight Throttle Quadrant. Control indices are unverified;
+# run `msfs-mapper learn <index>` to confirm them on the connected device.
+name: Pro Flight Throttle Quadrant
+manufacturer: Logitech (Saitek)
+vendor_id: 0x06A3
+product_id: 0x0C2D
+default_position: right
+controls:
+  # Levers left to right; the stable ordering helps map throttle/prop/mixture in sequence.
+  - {id: lever_1, kind: axis, label: Lever 1, roles: [lever], axis: 0}
+  - {id: lever_2, kind: axis, label: Lever 2, roles: [lever], axis: 1}
+  - {id: lever_3, kind: axis, label: Lever 3, roles: [lever], axis: 2}
+  - {id: switch_1, kind: button, label: Switch 1, roles: [switch], button: 0}
+  - {id: switch_2, kind: button, label: Switch 2, roles: [switch], button: 1}
+  - {id: switch_3, kind: button, label: Switch 3, roles: [switch], button: 2}
+  - {id: switch_4, kind: button, label: Switch 4, roles: [switch], button: 3}
+  - {id: switch_5, kind: button, label: Switch 5, roles: [switch], button: 4}
+  - {id: switch_6, kind: button, label: Switch 6, roles: [switch], button: 5}

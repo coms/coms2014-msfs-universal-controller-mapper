@@ -1,0 +1,47 @@
+# VKB-Sim Gladiator NXT / NXT EVO. HID indices may vary by firmware and grip;
+# run `msfs-mapper learn <index>` to confirm them on the connected device.
+name: Gladiator NXT / EVO
+manufacturer: VKB-Sim
+vendor_id: 0x231D
+product_id: 0x0200
+default_position: right
+controls:
+  - {id: stick_x, kind: axis, label: Stick X, roles: [stick.roll], axis: 0}
+  - {id: stick_y, kind: axis, label: Stick Y, roles: [stick.pitch], axis: 1}
+  - {id: twist, kind: axis, label: Twist grip, roles: [rudder, yaw], axis: 2}
+  - {id: throttle, kind: axis, label: Throttle, roles: [throttle, lever], axis: 3}
+  - {id: mini_stick_x, kind: axis, label: Mini-stick X, roles: [], axis: 4}
+  - {id: mini_stick_y, kind: axis, label: Mini-stick Y, roles: [], axis: 5}
+  - {id: pov_hat, kind: hat, label: POV hat, roles: [trim.pitch, trim], hat: 0}
+  - {id: button_1, kind: button, label: Button 1, button: 0}
+  - {id: button_2, kind: button, label: Button 2, button: 1}
+  - {id: button_3, kind: button, label: Button 3, button: 2}
+  - {id: button_4, kind: button, label: Button 4, button: 3}
+  - {id: button_5, kind: button, label: Button 5, button: 4}
+  - {id: button_6, kind: button, label: Button 6, button: 5}
+  - {id: button_7, kind: button, label: Button 7, button: 6}
+  - {id: button_8, kind: button, label: Button 8, button: 7}
+  - {id: button_9, kind: button, label: Button 9, button: 8}
+  - {id: button_10, kind: button, label: Button 10, button: 9}
+  - {id: button_11, kind: button, label: Button 11, button: 10}
+  - {id: button_12, kind: button, label: Button 12, button: 11}
+  - {id: button_13, kind: button, label: Button 13, button: 12}
+  - {id: button_14, kind: button, label: Button 14, button: 13}
+  - {id: button_15, kind: button, label: Button 15, button: 14}
+  - {id: button_16, kind: button, label: Button 16, button: 15}
+  - {id: button_17, kind: button, label: Button 17, button: 16}
+  - {id: button_18, kind: button, label: Button 18, button: 17}
+  - {id: button_19, kind: button, label: Button 19, button: 18}
+  - {id: button_20, kind: button, label: Button 20, button: 19}
+  - {id: button_21, kind: button, label: Button 21, button: 20}
+  - {id: button_22, kind: button, label: Button 22, button: 21}
+  - {id: button_23, kind: button, label: Button 23, button: 22}
+  - {id: button_24, kind: button, label: Button 24, button: 23}
+  - {id: button_25, kind: button, label: Button 25, button: 24}
+  - {id: button_26, kind: button, label: Button 26, button: 25}
+  - {id: button_27, kind: button, label: Button 27, button: 26}
+  - {id: button_28, kind: button, label: Button 28, button: 27}
+  - {id: button_29, kind: button, label: Button 29, button: 28}
+  - {id: button_30, kind: button, label: Button 30, button: 29}
+  - {id: button_31, kind: button, label: Button 31, button: 30}
+  - {id: button_32, kind: button, label: Button 32, button: 31}

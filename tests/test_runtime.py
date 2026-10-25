@@ -1,11 +1,25 @@
 from msfs_mapper.aircraft.templates import profile_from_template
 from msfs_mapper.mapping.engine import functions_for, heuristic_map
-from msfs_mapper.models import AircraftInfo, ControlKind
+from msfs_mapper.models import (
+    AircraftInfo,
+    Binding,
+    ControlKind,
+    ControllerSetup,
+    DetectedDevice,
+    MappingProfile,
+    SetupDevice,
+)
 from msfs_mapper.pipeline import Mapper
 from msfs_mapper.profiles.store import Store
 from msfs_mapper.runtime.bridge import LogExecutor, Router
-from msfs_mapper.runtime.inputs import AxisMoved, ButtonChanged
+from msfs_mapper.runtime.inputs import (
+    AxisMoved,
+    ButtonChanged,
+    MobiFlightSerialInputSource,
+    parse_mobiflight_line,
+)
 from msfs_mapper.runtime.learn import learn_device
+from msfs_mapper.devices.mobiflight import mega_definition
 
 from conftest import ALPHA, BRAVO, PEDALS
 
@@ -66,3 +80,63 @@ def test_learn_updates_indices_and_marks_verified(setup):
     assert by_id["toe_left"].axis == 5 and by_id["toe_left"].verified
     assert by_id["toe_right"].axis == 1 and not by_id["toe_right"].verified
     assert by_id["rudder"].axis == 2 and by_id["rudder"].kind is ControlKind.AXIS
+
+
+def test_mobiflight_serial_events_route_buttons_and_encoder_directions():
+    detected = DetectedDevice(index=4, name="MobiFlight Mega (2B/1E)")
+    device = SetupDevice(detected=detected, definition=mega_definition(2, 1))
+    setup = ControllerSetup(devices=[device])
+    mapping = MappingProfile(
+        aircraft_key="cessna",
+        setup_fingerprint=setup.fingerprint(),
+        bindings=[
+            Binding(device=device.key, control="encoder_1", function="elevator_trim")
+        ],
+    )
+    executor = LogExecutor()
+    router = Router(setup, mapping, functions_for(profile_from_template(A320)), executor)
+    assert parse_mobiflight_line("B,1,1", 4, 2, 1) == ButtonChanged(4, 1, True)
+    assert parse_mobiflight_line("E,0,1", 4, 2, 1) == ButtonChanged(4, 2, True)
+    assert parse_mobiflight_line("E,0,-1", 4, 2, 1) == ButtonChanged(4, 3, True)
+    assert parse_mobiflight_line("E,1,1", 4, 2, 1) is None
+    router.handle(parse_mobiflight_line("E,0,1", 4, 2, 1))
+    router.handle(parse_mobiflight_line("E,0,-1", 4, 2, 1))
+    assert executor.sent == [("ELEV_TRIM_UP", 0), ("ELEV_TRIM_DN", 0)]
+
+
+def test_mobiflight_serial_source_handles_partial_lines_and_ready_handshake():
+    class FakeSerial:
+        def __init__(self):
+            self.chunks = iter([b"READY,1,2,1\nB,0,", b"1\nE,0,1\n", b""])
+            self.closed = False
+
+        def read(self, _size):
+            return next(self.chunks)
+
+        def close(self):
+            self.closed = True
+
+    serial = FakeSerial()
+    source = MobiFlightSerialInputSource(
+        "COM5", device=3, button_count=2, encoder_count=1, serial_connection=serial
+    )
+    assert list(source.events(timeout=0.1)) == [
+        ButtonChanged(3, 0, True),
+        ButtonChanged(3, 2, True),
+    ]
+    source.close()
+    assert serial.closed
+
+
+def test_mobiflight_serial_source_rejects_mismatched_firmware_counts():
+    class FakeSerial:
+        def read(self, _size):
+            return b"READY,1,8,2\n"
+
+    source = MobiFlightSerialInputSource(
+        "COM5", device=3, button_count=2, encoder_count=1, serial_connection=FakeSerial()
+    )
+    import pytest
+
+    with pytest.raises(ValueError, match="firmware mismatch"):
+        list(source.events(timeout=0.1))

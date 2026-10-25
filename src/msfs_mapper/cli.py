@@ -11,7 +11,14 @@ from pathlib import Path
 
 from msfs_mapper.ai import AIError, Claude
 from msfs_mapper.mapping.engine import functions_for
-from msfs_mapper.models import AircraftInfo, AircraftProfile, ControllerSetup, MappingProfile
+from msfs_mapper.models import (
+    AircraftInfo,
+    AircraftProfile,
+    ControllerSetup,
+    DetectedDevice,
+    MappingProfile,
+    SetupDevice,
+)
 from msfs_mapper.pipeline import Mapper
 from msfs_mapper.profiles.store import Store
 
@@ -114,17 +121,48 @@ def cmd_map(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gui(args: argparse.Namespace) -> int:
+    from msfs_mapper.gui import launch_gui
+
+    launch_gui(home=args.home, no_ai=args.no_ai)
+    return 0
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     from SimConnect import SimConnect
 
     from msfs_mapper.aircraft.detect import SimConnectAircraftSource, watch_aircraft
     from msfs_mapper.runtime.bridge import LogExecutor, Router, SimConnectExecutor
-    from msfs_mapper.runtime.inputs import PygameInputSource
+    from msfs_mapper.devices.mobiflight import mega_definition
+    from msfs_mapper.runtime.inputs import MobiFlightSerialInputSource, PygameInputSource
 
     mapper = _mapper(args)
     sim = SimConnect()
     source = PygameInputSource()
     setup = mapper.setup(_detect())
+    mobiflight_source = None
+    if args.mobiflight_port:
+        index = max((device.detected.index for device in setup.devices), default=-1) + 1
+        detected = DetectedDevice(
+            index=index,
+            name=f"MobiFlight Mega ({args.mobiflight_buttons}B/{args.mobiflight_encoders}E)",
+            num_buttons=args.mobiflight_buttons + args.mobiflight_encoders * 2,
+        )
+        setup.devices.append(
+            SetupDevice(detected=detected, definition=mega_definition(
+                args.mobiflight_buttons, args.mobiflight_encoders
+            ))
+        )
+        mobiflight_source = MobiFlightSerialInputSource(
+            args.mobiflight_port,
+            index,
+            args.mobiflight_buttons,
+            args.mobiflight_encoders,
+        )
+        print(
+            f"Connected MobiFlight Mega on {args.mobiflight_port} "
+            f"({args.mobiflight_buttons} buttons, {args.mobiflight_encoders} encoders)"
+        )
     executor = LogExecutor() if args.dry_run else SimConnectExecutor(sim)
     loaded: queue.Queue[AircraftInfo] = queue.Queue()
     aircraft_source = SimConnectAircraftSource(sim)
@@ -146,11 +184,18 @@ def cmd_run(args: argparse.Namespace) -> int:
                 router = Router(setup, mapping, functions_for(profile), executor)
             except queue.Empty:
                 pass
-            for event in source.events(timeout=0.5):
+            for event in source.events(timeout=0.1):
                 if router:
                     router.handle(event)
+            if mobiflight_source:
+                for event in mobiflight_source.events(timeout=0):
+                    if router:
+                        router.handle(event)
     except KeyboardInterrupt:
         return 0
+    finally:
+        if mobiflight_source:
+            mobiflight_source.close()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -178,8 +223,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--refresh", action="store_true", help="regenerate even if a mapping is saved")
     p.set_defaults(fn=cmd_map)
 
+    sub.add_parser("gui", help="open the desktop mapping interface").set_defaults(fn=cmd_gui)
+
     p = sub.add_parser("run", help="auto-map each aircraft as it loads and drive the sim")
     p.add_argument("--dry-run", action="store_true", help="log actions instead of sending them")
+    p.add_argument("--mobiflight-port", help="COM port for the companion Mega serial firmware")
+    p.add_argument("--mobiflight-buttons", type=int, default=8, help="number of configured Mega buttons")
+    p.add_argument("--mobiflight-encoders", type=int, default=2, help="number of configured Mega encoders")
     p.set_defaults(fn=cmd_run)
 
     args = parser.parse_args(argv)

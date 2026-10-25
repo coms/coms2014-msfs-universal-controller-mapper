@@ -18,6 +18,7 @@ dependencies = [
 # Runtime pieces that only make sense on the Windows PC running MSFS.
 sim = [
     "pygame>=2.5",
+    "pyserial>=3.5",
     "SimConnect>=0.4.26",
 ]
 dev = ["pytest>=8"]
@@ -29,7 +30,12 @@ msfs-mapper = "msfs_mapper.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-msfs_mapper = ["data/*.yaml", "data/devices/*.yaml", "data/checklists/*.yaml"]
+msfs_mapper = [
+    "data/*.yaml",
+    "data/devices/*.yaml",
+    "data/checklists/*.yaml",
+    "data/firmware/mobiflight_mega/*.ino",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
