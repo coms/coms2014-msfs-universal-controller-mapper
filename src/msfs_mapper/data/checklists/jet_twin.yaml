@@ -1,0 +1,40 @@
+id: jet_twin
+description: Twin-engine jet airliner or bizjet (A320, 737, CJ4, Longitude)
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, speedbrake,
+            flaps, gear, reversers, spoilers_arm, ap_disconnect, autothrottle_arm,
+            elevator_trim, parking_brake, landing_lights, taxi_lights, strobe_lights,
+            beacon, nav_lights, ap_master, ap_heading, ap_nav, ap_approach, ap_altitude,
+            ap_vs, heading_bug, ap_altitude_select, ap_vs_select, battery, avionics,
+            pitot_heat, throttle]
+checklists:
+  - phase: before_takeoff
+    items:
+      - {challenge: Flaps, response: SET FOR TAKEOFF, function: flaps}
+      - {challenge: Spoilers, response: ARMED, function: spoilers_arm}
+      - {challenge: Trim, response: SET, function: elevator_trim}
+      - {challenge: Taxi light, response: TAKEOFF, function: taxi_lights}
+  - phase: takeoff
+    items:
+      - {challenge: Landing lights, response: "ON", function: landing_lights}
+      - {challenge: Strobes, response: "ON", function: strobe_lights}
+      - {challenge: Parking brake, response: RELEASED, function: parking_brake}
+      - {challenge: Thrust levers, response: FLEX / TOGA, function: throttle_1}
+      - {challenge: Positive climb, response: GEAR UP, function: gear}
+      - {challenge: Autothrottle, response: ENGAGED, function: autothrottle_arm}
+  - phase: approach
+    items:
+      - {challenge: Approach mode, response: ARMED, function: ap_approach}
+      - {challenge: Speed brake, response: RETRACTED, function: speedbrake}
+      - {challenge: Landing lights, response: "ON", function: landing_lights}
+  - phase: landing
+    items:
+      - {challenge: Gear, response: DOWN 3 GREEN, function: gear}
+      - {challenge: Flaps, response: FULL, function: flaps}
+      - {challenge: Ground spoilers, response: ARMED, function: spoilers_arm}
+      - {challenge: Autopilot, response: DISCONNECT, function: ap_disconnect}
+      - {challenge: Thrust levers, response: IDLE, function: throttle_1}
+      - {challenge: Reversers, response: AS REQUIRED, function: reversers}
+  - phase: after_landing
+    items:
+      - {challenge: Speed brake, response: RETRACTED, function: speedbrake}
+      - {challenge: Strobes, response: "OFF", function: strobe_lights}

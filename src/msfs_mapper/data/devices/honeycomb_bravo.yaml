@@ -1,0 +1,35 @@
+# Honeycomb Aeronautical Bravo Throttle Quadrant.
+# Indices are 0-based SDL indices from community references and are NOT verified
+# on hardware: run `msfs-mapper learn` once to confirm them.
+name: Bravo Throttle Quadrant
+manufacturer: Honeycomb
+vendor_id: 0x294B
+product_id: 0x1901
+default_position: right
+controls:
+  # Levers left to right. Order matters: the mapper fills cockpit-ordered axis functions in this order.
+  - {id: lever_1, kind: axis, label: Lever 1, roles: [lever], axis: 0}
+  - {id: lever_2, kind: axis, label: Lever 2, roles: [lever], axis: 1}
+  - {id: lever_3, kind: axis, label: Lever 3, roles: [lever], axis: 2}
+  - {id: lever_4, kind: axis, label: Lever 4, roles: [lever], axis: 3}
+  - {id: lever_5, kind: axis, label: Lever 5, roles: [lever], axis: 4}
+  - {id: lever_6, kind: axis, label: Lever 6, roles: [lever], axis: 5}
+  - {id: ap_hdg, kind: button, label: HDG, roles: [autopilot.hdg], button: 0}
+  - {id: ap_nav, kind: button, label: NAV, roles: [autopilot.nav], button: 1}
+  - {id: ap_apr, kind: button, label: APR, roles: [autopilot.apr], button: 2}
+  - {id: ap_rev, kind: button, label: REV, roles: [autopilot], button: 3}
+  - {id: ap_alt, kind: button, label: ALT, roles: [autopilot.alt], button: 4}
+  - {id: ap_vs, kind: button, label: VS, roles: [autopilot.vs], button: 5}
+  - {id: ap_ias, kind: button, label: IAS, roles: [autopilot.ias], button: 6}
+  - {id: ap_master, kind: button, label: AP, roles: [autopilot.master], button: 7}
+  - {id: ap_knob, kind: encoder, label: Autopilot rotary knob, roles: [encoder.hdg, encoder.alt, encoder], inc_button: 12, dec_button: 13}
+  - {id: flaps_lever, kind: encoder, label: FLAPS lever (up / down), roles: [flaps], inc_button: 15, dec_button: 14}
+  - {id: trim_wheel, kind: encoder, label: Trim wheel, roles: [trim.pitch, trim], inc_button: 21, dec_button: 20}
+  - {id: gear_lever, kind: switch, label: GEAR lever, roles: [gear], on_button: 31, off_button: 30}
+  - {id: toggle_1, kind: switch, label: Toggle switch 1, roles: [switch], on_button: 33, off_button: 34}
+  - {id: toggle_2, kind: switch, label: Toggle switch 2, roles: [switch], on_button: 35, off_button: 36}
+  - {id: toggle_3, kind: switch, label: Toggle switch 3, roles: [switch], on_button: 37, off_button: 38}
+  - {id: toggle_4, kind: switch, label: Toggle switch 4, roles: [switch], on_button: 39, off_button: 40}
+  - {id: toggle_5, kind: switch, label: Toggle switch 5, roles: [switch], on_button: 41, off_button: 42}
+  - {id: toggle_6, kind: switch, label: Toggle switch 6, roles: [switch], on_button: 43, off_button: 44}
+  - {id: toggle_7, kind: switch, label: Toggle switch 7, roles: [switch], on_button: 45, off_button: 46}

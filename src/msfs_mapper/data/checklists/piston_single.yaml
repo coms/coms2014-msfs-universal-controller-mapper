@@ -1,0 +1,36 @@
+id: piston_single
+description: Single-engine piston, fixed or retractable gear (C172, DA40, PA-28, Bonanza)
+# Highest priority first. Axis functions are listed in cockpit order, left to right,
+# so they land on levers in the same order on a throttle quadrant.
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle, propeller, mixture,
+            elevator_trim, flaps, gear, parking_brake, landing_lights, taxi_lights,
+            beacon, strobe_lights, nav_lights, battery, alternator, avionics, fuel_pump,
+            pitot_heat, engine_autostart, ap_master, ap_heading, ap_nav, ap_approach,
+            ap_altitude, ap_vs, heading_bug, ap_altitude_select, ap_vs_select, ap_disconnect]
+checklists:
+  - phase: before_takeoff
+    items:
+      - {challenge: Parking brake, response: SET, function: parking_brake}
+      - {challenge: Mixture, response: RICH, function: mixture}
+      - {challenge: Elevator trim, response: TAKEOFF, function: elevator_trim}
+      - {challenge: Flaps, response: AS REQUIRED, function: flaps}
+      - {challenge: Fuel pump, response: "ON", function: fuel_pump}
+  - phase: takeoff
+    items:
+      - {challenge: Landing / taxi lights, response: "ON", function: landing_lights}
+      - {challenge: Strobes, response: "ON", function: strobe_lights}
+      - {challenge: Parking brake, response: RELEASE, function: parking_brake}
+      - {challenge: Throttle, response: FULL, function: throttle}
+      - {challenge: Rotate, response: 55 KIAS, function: pitch}
+      - {challenge: Gear, response: UP (if retractable), function: gear}
+  - phase: approach
+    items:
+      - {challenge: Mixture, response: RICH, function: mixture}
+      - {challenge: Propeller, response: HIGH RPM, function: propeller}
+      - {challenge: Landing lights, response: "ON", function: landing_lights}
+  - phase: landing
+    items:
+      - {challenge: Gear, response: DOWN, function: gear}
+      - {challenge: Flaps, response: FULL, function: flaps}
+      - {challenge: Throttle, response: IDLE, function: throttle}
+      - {challenge: Brakes, response: AS REQUIRED, function: brake_left}

@@ -1,0 +1,217 @@
+# Base catalog of aircraft functions, driven through standard SimConnect key events.
+# Add-on aircraft that ignore the standard events (FBW, Fenix, PMDG...) get
+# aircraft-specific overrides via AircraftProfile.custom_functions.
+#
+# Shorthand: a plain string is a SimConnect event; {calc: "..."} is calculator code.
+
+# --- Primary flight controls -------------------------------------------------
+- id: roll
+  name: Ailerons / roll
+  roles: [roll, yoke.roll, stick.roll]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_AILERONS_SET}
+- id: pitch
+  name: Elevator / pitch
+  roles: [pitch, yoke.pitch, stick.pitch]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_ELEVATOR_SET}
+- id: yaw
+  name: Rudder
+  roles: [yaw, rudder, stick.twist]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_RUDDER_SET}
+- id: brake_left
+  name: Left toe brake
+  roles: [brake.left]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_LEFT_BRAKE_SET}
+- id: brake_right
+  name: Right toe brake
+  roles: [brake.right]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_RIGHT_BRAKE_SET}
+- id: elevator_trim
+  name: Elevator trim
+  roles: [trim.pitch, trim]
+  preferred_kinds: [encoder, hat, axis]
+  actions: {axis: AXIS_ELEV_TRIM_SET, inc: ELEV_TRIM_UP, dec: ELEV_TRIM_DN}
+
+# --- Engine levers -----------------------------------------------------------
+- id: throttle
+  name: Throttle (all engines)
+  roles: [throttle, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_THROTTLE_SET}
+- id: throttle_1
+  name: Throttle engine 1
+  roles: [throttle, throttle.1, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_THROTTLE1_SET}
+- id: throttle_2
+  name: Throttle engine 2
+  roles: [throttle, throttle.2, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_THROTTLE2_SET}
+- id: propeller
+  name: Propeller RPM
+  roles: [propeller, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_PROPELLER_SET}
+- id: mixture
+  name: Mixture
+  roles: [mixture, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_MIXTURE_SET}
+- id: condition_lever
+  name: Condition lever
+  roles: [condition, mixture, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_CONDITION_LEVER_SET}
+- id: speedbrake
+  name: Spoilers / speed brake
+  roles: [spoilers, speedbrake, lever]
+  preferred_kinds: [axis, button]
+  actions: {axis: AXIS_SPOILER_SET, press: SPOILERS_TOGGLE}
+- id: spoilers_arm
+  name: Arm ground spoilers
+  roles: [spoilers.arm, switch]
+  preferred_kinds: [switch, button]
+  actions: {press: SPOILERS_ARM_TOGGLE}
+- id: reversers
+  name: Thrust reversers
+  roles: [reversers, throttle.detent]
+  preferred_kinds: [button, switch]
+  actions: {press: THROTTLE_REVERSE_THRUST_TOGGLE}
+
+# --- Configuration -----------------------------------------------------------
+- id: gear
+  name: Landing gear
+  roles: [gear]
+  preferred_kinds: [switch, button]
+  actions: {on: GEAR_DOWN, off: GEAR_UP, press: GEAR_TOGGLE}
+- id: flaps
+  name: Flaps
+  roles: [flaps]
+  preferred_kinds: [encoder, switch, axis]
+  actions: {inc: FLAPS_INCR, dec: FLAPS_DECR, axis: AXIS_FLAPS_SET}
+- id: parking_brake
+  name: Parking brake
+  roles: [parking_brake, switch]
+  preferred_kinds: [switch, button]
+  actions: {press: PARKING_BRAKES}
+
+# --- Electrical / engine start ----------------------------------------------
+- id: battery
+  name: Master battery
+  roles: [battery, master.battery, switch.master]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_MASTER_BATTERY}
+- id: alternator
+  name: Alternator / generator
+  roles: [alternator, master.alternator, switch.master]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_MASTER_ALTERNATOR}
+- id: avionics
+  name: Avionics master
+  roles: [avionics, switch.avionics]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_AVIONICS_MASTER}
+- id: fuel_pump
+  name: Electric fuel pump
+  roles: [fuel_pump, switch]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_ELECT_FUEL_PUMP}
+- id: pitot_heat
+  name: Pitot heat
+  roles: [pitot_heat, anti_ice, switch]
+  preferred_kinds: [switch]
+  actions: {on: PITOT_HEAT_ON, off: PITOT_HEAT_OFF, press: PITOT_HEAT_TOGGLE}
+- id: engine_autostart
+  name: Engine auto-start
+  roles: [engine.start, magneto.start]
+  preferred_kinds: [button]
+  actions: {press: ENGINE_AUTO_START}
+
+# --- Lights ------------------------------------------------------------------
+- id: beacon
+  name: Beacon light
+  roles: [lights.beacon, lights, switch]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_BEACON_LIGHTS}
+- id: landing_lights
+  name: Landing lights
+  roles: [lights.landing, lights, switch]
+  preferred_kinds: [switch]
+  actions: {on: LANDING_LIGHTS_ON, off: LANDING_LIGHTS_OFF, press: LANDING_LIGHTS_TOGGLE}
+- id: taxi_lights
+  name: Taxi lights
+  roles: [lights.taxi, lights, switch]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_TAXI_LIGHTS}
+- id: nav_lights
+  name: Navigation lights
+  roles: [lights.nav, lights, switch]
+  preferred_kinds: [switch]
+  actions: {press: TOGGLE_NAV_LIGHTS}
+- id: strobe_lights
+  name: Strobe lights
+  roles: [lights.strobe, lights, switch]
+  preferred_kinds: [switch]
+  actions: {press: STROBES_TOGGLE}
+
+# --- Autopilot ---------------------------------------------------------------
+- id: ap_master
+  name: Autopilot master
+  roles: [autopilot.master, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_MASTER}
+- id: ap_heading
+  name: Autopilot heading mode
+  roles: [autopilot.hdg, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_PANEL_HEADING_HOLD}
+- id: ap_nav
+  name: Autopilot NAV mode
+  roles: [autopilot.nav, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_NAV1_HOLD}
+- id: ap_approach
+  name: Autopilot approach mode
+  roles: [autopilot.apr, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_APR_HOLD}
+- id: ap_altitude
+  name: Autopilot altitude hold
+  roles: [autopilot.alt, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_PANEL_ALTITUDE_HOLD}
+- id: ap_vs
+  name: Autopilot vertical speed mode
+  roles: [autopilot.vs, autopilot]
+  preferred_kinds: [button]
+  actions: {press: AP_PANEL_VS_HOLD}
+- id: ap_disconnect
+  name: Autopilot disconnect
+  roles: [autopilot.disconnect, yoke.button]
+  preferred_kinds: [button]
+  actions: {press: AUTOPILOT_OFF}
+- id: autothrottle_arm
+  name: Autothrottle arm
+  roles: [autothrottle, autopilot.ias]
+  preferred_kinds: [button]
+  actions: {press: AUTO_THROTTLE_ARM}
+- id: heading_bug
+  name: Heading bug
+  roles: [encoder.hdg, encoder]
+  preferred_kinds: [encoder]
+  actions: {inc: HEADING_BUG_INC, dec: HEADING_BUG_DEC}
+- id: ap_altitude_select
+  name: Selected altitude
+  roles: [encoder.alt, encoder]
+  preferred_kinds: [encoder]
+  actions: {inc: AP_ALT_VAR_INC, dec: AP_ALT_VAR_DEC}
+- id: ap_vs_select
+  name: Selected vertical speed
+  roles: [encoder.vs, encoder]
+  preferred_kinds: [encoder]
+  actions: {inc: AP_VS_VAR_INC, dec: AP_VS_VAR_DEC}

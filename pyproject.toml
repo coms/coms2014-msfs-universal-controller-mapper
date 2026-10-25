@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msfs-mapper"
+version = "0.1.0"
+description = "AI-assisted automatic controller mapping for Microsoft Flight Simulator aircraft"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=2.3",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Runtime pieces that only make sense on the Windows PC running MSFS.
+sim = [
+    "pygame>=2.5",
+    "SimConnect>=0.4.26",
+]
+dev = ["pytest>=8"]
+
+[project.scripts]
+msfs-mapper = "msfs_mapper.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+msfs_mapper = ["data/*.yaml", "data/devices/*.yaml", "data/checklists/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

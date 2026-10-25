@@ -1,0 +1,60 @@
+"""Everything the tool remembers lives under one directory (MSFS_MAPPER_HOME or ~/.msfs-mapper)."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+
+from msfs_mapper.models import AircraftProfile, MappingProfile
+
+
+def default_home() -> Path:
+    return Path(os.environ.get("MSFS_MAPPER_HOME", Path.home() / ".msfs-mapper"))
+
+
+class Store:
+    def __init__(self, home: Path | None = None):
+        self.home = home or default_home()
+
+    @property
+    def devices_dir(self) -> Path:
+        return self.home / "devices"
+
+    def _mapping_path(self, aircraft_key: str, fingerprint: str) -> Path:
+        digest = hashlib.sha1(fingerprint.encode()).hexdigest()[:10]
+        return self.home / "mappings" / f"{aircraft_key}__{digest}.json"
+
+    def _aircraft_path(self, aircraft_key: str) -> Path:
+        return self.home / "aircraft" / f"{aircraft_key}.json"
+
+    def load_positions(self) -> dict[str, str]:
+        path = self.home / "positions.json"
+        return json.loads(path.read_text("utf-8")) if path.exists() else {}
+
+    def save_positions(self, positions: dict[str, str]) -> Path:
+        return _write(self.home / "positions.json", json.dumps(positions, indent=2, sort_keys=True))
+
+    def load_mapping(self, aircraft_key: str, fingerprint: str) -> MappingProfile | None:
+        path = self._mapping_path(aircraft_key, fingerprint)
+        return MappingProfile.model_validate_json(path.read_text("utf-8")) if path.exists() else None
+
+    def save_mapping(self, mapping: MappingProfile) -> Path:
+        path = self._mapping_path(mapping.aircraft_key, mapping.setup_fingerprint)
+        return _write(path, mapping.model_dump_json(indent=2))
+
+    def load_aircraft(self, aircraft_key: str) -> AircraftProfile | None:
+        path = self._aircraft_path(aircraft_key)
+        return AircraftProfile.model_validate_json(path.read_text("utf-8")) if path.exists() else None
+
+    def save_aircraft(self, profile: AircraftProfile) -> Path:
+        return _write(self._aircraft_path(profile.aircraft.key), profile.model_dump_json(indent=2))
+
+
+def _write(path: Path, text: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(text, "utf-8")
+    tmp.replace(path)
+    return path

@@ -1,0 +1,10 @@
+# Saitek / Logitech Pro Flight Rudder Pedals. Indices NOT verified on hardware.
+name: Pro Flight Rudder Pedals
+manufacturer: Logitech (Saitek)
+vendor_id: 0x06A3
+product_id: 0x0763
+default_position: floor
+controls:
+  - {id: toe_left, kind: axis, label: Left toe brake, roles: [brake.left], axis: 0}
+  - {id: toe_right, kind: axis, label: Right toe brake, roles: [brake.right], axis: 1}
+  - {id: rudder, kind: axis, label: Rudder, roles: [rudder, yaw], axis: 2}

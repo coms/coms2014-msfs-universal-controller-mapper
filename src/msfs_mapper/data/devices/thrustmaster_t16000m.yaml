@@ -1,0 +1,14 @@
+# Thrustmaster T.16000M FCS joystick. Indices NOT verified on hardware.
+name: T.16000M
+manufacturer: Thrustmaster
+vendor_id: 0x044F
+product_id: 0xB10A
+default_position: right
+controls:
+  - {id: stick_x, kind: axis, label: Stick X, roles: [stick.roll], axis: 0}
+  - {id: stick_y, kind: axis, label: Stick Y, roles: [stick.pitch], axis: 1}
+  - {id: stick_twist, kind: axis, label: Twist, roles: [stick.twist], axis: 2}
+  - {id: slider, kind: axis, label: Throttle slider, roles: [throttle, lever], axis: 3}
+  - {id: trigger, kind: button, label: Trigger, roles: [autopilot.disconnect], button: 0}
+  - {id: thumb_button, kind: button, label: Thumb button, roles: [yoke.button], button: 1}
+  - {id: hat, kind: hat, label: Hat, roles: [trim.pitch, trim], hat: 0}

@@ -1,0 +1,33 @@
+id: turboprop
+description: Turboprop single or twin (TBM 930, King Air 350, PC-12, ATR 72)
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, throttle,
+            propeller, condition_lever, elevator_trim, flaps, gear, reversers, parking_brake,
+            landing_lights, taxi_lights, beacon, strobe_lights, nav_lights, battery,
+            alternator, avionics, fuel_pump, pitot_heat, ap_master, ap_heading, ap_nav,
+            ap_approach, ap_altitude, ap_vs, heading_bug, ap_altitude_select, ap_vs_select,
+            ap_disconnect, engine_autostart]
+checklists:
+  - phase: before_takeoff
+    items:
+      - {challenge: Condition levers, response: HIGH IDLE / FLIGHT, function: condition_lever}
+      - {challenge: Trim, response: SET, function: elevator_trim}
+      - {challenge: Flaps, response: TAKEOFF, function: flaps}
+      - {challenge: Pitot heat, response: "ON", function: pitot_heat}
+  - phase: takeoff
+    items:
+      - {challenge: Landing lights, response: "ON", function: landing_lights}
+      - {challenge: Strobes, response: "ON", function: strobe_lights}
+      - {challenge: Power levers, response: TAKEOFF POWER, function: throttle_1}
+      - {challenge: Gear, response: UP, function: gear}
+      - {challenge: Flaps, response: UP, function: flaps}
+  - phase: approach
+    items:
+      - {challenge: Propeller levers, response: MAX RPM, function: propeller}
+      - {challenge: Approach mode, response: ARM, function: ap_approach}
+  - phase: landing
+    items:
+      - {challenge: Gear, response: DOWN, function: gear}
+      - {challenge: Flaps, response: LANDING, function: flaps}
+      - {challenge: Autopilot, response: DISCONNECT, function: ap_disconnect}
+      - {challenge: Power levers, response: IDLE / BETA, function: throttle_1}
+      - {challenge: Reverse, response: AS REQUIRED, function: reversers}

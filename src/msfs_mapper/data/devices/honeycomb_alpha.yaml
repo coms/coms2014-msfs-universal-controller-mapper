@@ -1,0 +1,24 @@
+# Honeycomb Aeronautical Alpha Flight Controls (yoke + switch panel).
+# Indices are 0-based SDL indices from community references and are NOT verified
+# on hardware: run `msfs-mapper learn` once to confirm them, which flips `verified`.
+name: Alpha Flight Controls
+manufacturer: Honeycomb
+vendor_id: 0x294B
+product_id: 0x1900
+default_position: center
+controls:
+  - {id: yoke_roll, kind: axis, label: Yoke roll, roles: [yoke.roll], axis: 0}
+  - {id: yoke_pitch, kind: axis, label: Yoke pitch, roles: [yoke.pitch], axis: 1}
+  - {id: yoke_left_red, kind: button, label: Left horn red button, roles: [autopilot.disconnect, yoke.button], button: 0}
+  - {id: yoke_left_white, kind: button, label: Left horn white button, roles: [yoke.button], button: 1}
+  - {id: yoke_trim, kind: encoder, label: Left horn trim rocker, roles: [trim.pitch, trim], inc_button: 2, dec_button: 3}
+  - {id: master_bat, kind: switch, label: MASTER BAT, roles: [master.battery, battery], on_button: 24, off_button: null}
+  - {id: master_alt, kind: switch, label: MASTER ALT, roles: [master.alternator, alternator], on_button: 25, off_button: null}
+  - {id: avionics_1, kind: switch, label: AVIONICS BUS 1, roles: [switch.avionics, avionics], on_button: 26, off_button: null}
+  - {id: avionics_2, kind: switch, label: AVIONICS BUS 2, roles: [switch.avionics, avionics], on_button: 27, off_button: null}
+  - {id: light_beacon, kind: switch, label: BCN, roles: [lights.beacon], on_button: 28, off_button: null}
+  - {id: light_land, kind: switch, label: LAND, roles: [lights.landing], on_button: 29, off_button: null}
+  - {id: light_taxi, kind: switch, label: TAXI, roles: [lights.taxi], on_button: 30, off_button: null}
+  - {id: light_nav, kind: switch, label: NAV, roles: [lights.nav], on_button: 31, off_button: null}
+  - {id: light_strobe, kind: switch, label: STROBE, roles: [lights.strobe], on_button: 32, off_button: null}
+  - {id: magneto_start, kind: button, label: Magneto START, roles: [magneto.start, engine.start], button: 23}
