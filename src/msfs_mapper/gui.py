@@ -22,9 +22,11 @@ from msfs_mapper.ai import AIError, Claude
 from msfs_mapper.data import function_catalog
 from msfs_mapper.mapping.engine import functions_for
 from msfs_mapper.mobiflight import MobiFlightError
+from msfs_mapper.mobiflight_export import ExportResult
 from msfs_mapper.models import (
     AircraftInfo,
     AircraftProfile,
+    Binding,
     ControllerSetup,
     DetectedDevice,
     KeyboardKnob,
@@ -63,6 +65,7 @@ class App:
         self.setup = ControllerSetup()
         self.profile: AircraftProfile | None = None
         self.mapping: MappingProfile | None = None
+        self.last_export: ExportResult | None = None
         self._sim_aircraft: AircraftInfo | None = None
         self._results: queue.Queue[Callable[[], None]] = queue.Queue()
         self._busy = 0
@@ -73,6 +76,7 @@ class App:
         self.use_ai = tk.BooleanVar(value=True)
         self.status = tk.StringVar(value="Ready")
         self._build()
+        self.show_export()
         root.after(100, self._poll)
         self.refresh_devices()
 
@@ -144,6 +148,14 @@ class App:
             text="Also map MobiFlight buttons and knobs to my other buttons and knobs "
                  "(switches and levers are never doubled)",
         ).pack(anchor="w", pady=(4, 0))
+        self.export_mf = tk.BooleanVar(value=self.store.load_settings().export_mobiflight)
+        ttk.Checkbutton(
+            mf_tab, variable=self.export_mf, command=lambda: self.set_export(self.export_mf.get()),
+            text="Write my automatic mapping into a MobiFlight project, so MobiFlight runs it",
+        ).pack(anchor="w")
+        self.export_info = tk.StringVar(value="")
+        ttk.Label(mf_tab, textvariable=self.export_info, foreground="gray", wraplength=900,
+                  justify="left").pack(anchor="w", padx=20)
         ttk.Label(mf_tab, text="Double-click an input to set which function it operates.").pack(
             anchor="w", pady=4)
         self.tabs = tabs
@@ -484,12 +496,14 @@ class App:
             return
         mapper, info, setup = self.mapper(), self.aircraft_info(), self.setup
 
-        def work() -> tuple[AircraftProfile, MappingProfile]:
+        def work() -> tuple[AircraftProfile, MappingProfile, ExportResult | None]:
             profile = mapper.aircraft_profile(info, refresh=refresh)
-            return profile, mapper.mapping(setup, profile, refresh=refresh)
+            mapping = mapper.mapping(setup, profile, refresh=refresh)
+            return profile, mapping, mapper.last_export
 
-        def done(result: tuple[AircraftProfile, MappingProfile]) -> None:
-            self.profile, self.mapping = result
+        def done(result: tuple[AircraftProfile, MappingProfile, ExportResult | None]) -> None:
+            self.profile, self.mapping, self.last_export = result
+            self.show_export()
             self.show_mapping()
             self.show_mobiflight()
             self.tabs.select(0)
@@ -513,9 +527,14 @@ class App:
             return functions[fid].name if fid in functions else fid
 
         auto = {"ai": "AI", "heuristic": "auto"}.get(self.mapping.source, "user")
+        exported = {(b.device, b.control) for b in self.last_export.exported} if self.last_export else set()
+
+        def source(b: Binding) -> str:
+            text = "locked" if b.locked else auto
+            return f"{text}, run by MobiFlight" if (b.device, b.control) in exported else text
+
         rows = [
-            (b.function, f"b{i}", (name(b.function), names.get(b.device, b.device), b.control,
-                                   "locked" if b.locked else auto))
+            (b.function, f"b{i}", (name(b.function), names.get(b.device, b.device), b.control, source(b)))
             for i, b in enumerate(self.mapping.bindings)
         ] + [
             (b.function, None, (name(b.function), b.module, b.input, "MobiFlight"))
@@ -537,8 +556,40 @@ class App:
                 binding = self.mapping.bindings[int(iid[1:])]
                 binding.locked = not binding.locked
         self.store.save_mapping(self.mapping)
+        if self.profile:
+            mapper = self.mapper()
+            mapper.export_mobiflight(self.setup, self.profile, self.mapping)
+            self.last_export = mapper.last_export
+            self.show_export()
         self.show_mapping()
         self.status.set("Locked bindings are kept when the mapping is rebuilt")
+
+    def set_export(self, enabled: bool) -> None:
+        settings = self.store.load_settings().model_copy(update={"export_mobiflight": enabled})
+        self.store.save_settings(settings)
+        if self.profile:
+            self.build_mapping(False)
+        else:
+            self.show_export()
+
+    def show_export(self) -> None:
+        result = self.last_export
+        if not self.export_mf.get():
+            text = "Off: `msfs-mapper run` drives all your controls itself."
+        elif result is None:
+            text = "Build a mapping to write the MobiFlight project."
+        else:
+            lines = []
+            if result.path:
+                lines.append(f"{len(result.exported)} controls written to {result.path}. Load this "
+                             "project in MobiFlight Connector; `msfs-mapper run` leaves them to MobiFlight.")
+            else:
+                lines.append("Nothing written yet: MobiFlight doesn't know any of your controllers.")
+            for device in result.needs_device_id:
+                lines.append(f"{device}: configure any one input of it in MobiFlight, save, and "
+                             "re-import the project, so it can be exported too.")
+            text = "\n".join(lines)
+        self.export_info.set(text)
 
     def _functions(self) -> dict:
         return functions_for(self.profile) if self.profile else function_catalog()

@@ -113,8 +113,27 @@ Importing your MobiFlight Connector project (`.mcc`) tells the mapper what they 
 - joysticks that MobiFlight reads directly (serial `JS-…`, e.g. a Bravo button you configured in
   MobiFlight) have those buttons reserved, so the same button never fires two actions.
 
-MobiFlight keeps running your boards; nothing is written to your `.mcc` file. A saved mapping is
+MobiFlight keeps running your boards; your own `.mcc` file is never modified. A saved mapping is
 rebuilt automatically when the import changes.
+
+### Exporting the mapping to MobiFlight (on by default)
+
+Each time a mapping is built, it is also written into a MobiFlight project:
+`~/.msfs-mapper/mobiflight/<your project> - <aircraft>.mcc`. That file is a copy of your imported
+project (boards, outputs, your inputs untouched) plus one input config per mapped control, tagged
+`[msfs-mapper]` in the description. Load it in MobiFlight Connector and MobiFlight runs those
+controls; `msfs-mapper run` then leaves them alone, so nothing is sent twice. MobiFlight can also
+send add-on aircraft L:vars / H:events, which the built-in bridge can't yet.
+
+- Only controllers MobiFlight already knows are exported. MobiFlight identifies a joystick by an id
+  that can't be read from USB, so it is learned from your project: configure any one input of a
+  controller in MobiFlight once, save, re-import, and that controller is exported from then on.
+- Not exported (kept by `msfs-mapper run`): the keyboard knob, hats, and axes that need
+  calculator code.
+- Re-exporting replaces the previous `[msfs-mapper]` configs; importing the exported file ignores
+  them, so the two never feed back into each other.
+- Turn it off with the checkbox on the *MobiFlight inputs* tab or `msfs-mapper mobiflight-export
+  --off`; `--folder` changes where projects are written.
 
 Because `msfs-mapper` drives the sim itself, **clear the bindings for these devices in the MSFS
 controls menu** (an empty profile per device) so the two don't fight.
@@ -135,6 +154,7 @@ This is an early scaffold. What works and what doesn't yet:
 | Desktop window (tkinter) | Implemented, tested under a virtual display |
 | MobiFlight `.mcc` import | Implemented and tested against a **hand-written** sample project; not yet checked against a real exported `.mcc` |
 | MobiFlight joystick button numbering (`Button N` → SDL index N-1) | Assumed, unverified |
+| MobiFlight export | Written and tested against the format as known; joystick input names (`Button N`, `Axis X`...) and the axis value range are **unverified** until opened in MobiFlight |
 | Keyboard volume knob | Key decoding, mapping and window tested; the Windows keyboard hook itself is **not yet run on Windows** |
 | Function catalog (≈40 functions, standard SimConnect key events) | Implemented |
 | Checklist templates: single piston, turboprop, twin jet | Implemented; helicopter/glider missing |

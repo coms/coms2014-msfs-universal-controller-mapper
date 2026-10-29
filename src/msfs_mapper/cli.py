@@ -138,12 +138,39 @@ def print_mapping(setup: ControllerSetup, profile: AircraftProfile, mapping: Map
         print(f"  notes: {profile.notes}")
 
 
+def print_export(mapper: Mapper) -> None:
+    result = mapper.last_export
+    if result is None:
+        return
+    if result.path:
+        print(f"\nMobiFlight project: {result.path}")
+        print(f"  {len(result.exported)} controls written; load this project in MobiFlight Connector."
+              " `msfs-mapper run` leaves them to MobiFlight.")
+    for name in result.needs_device_id:
+        print(f"  {name}: not exported yet. Configure any one input of it in MobiFlight, save,"
+              " and re-import the project so its MobiFlight device id is known.")
+
+
 def cmd_map(args: argparse.Namespace) -> int:
     mapper = _mapper(args)
     setup = mapper.setup(_detect())
     profile = mapper.aircraft_profile(_aircraft_from_args(args), refresh=args.refresh)
     mapping = mapper.mapping(setup, profile, refresh=args.refresh)
     print_mapping(setup, profile, mapping)
+    print_export(mapper)
+    return 0
+
+
+def cmd_mobiflight_export(args: argparse.Namespace) -> int:
+    store = Store(args.home)
+    update = {"export_mobiflight": args.enabled} if args.enabled is not None else {}
+    if args.folder is not None:
+        update["export_folder"] = str(args.folder) if str(args.folder) else None
+    settings = store.load_settings().model_copy(update=update)
+    store.save_settings(settings)
+    folder = settings.export_folder or store.home / "mobiflight"
+    state = "on" if settings.export_mobiflight else "off"
+    print(f"MobiFlight export is {state}; projects are written to {folder}")
     return 0
 
 
@@ -186,7 +213,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                 profile = mapper.aircraft_profile(info)
                 mapping = mapper.mapping(setup, profile)
                 print_mapping(setup, profile, mapping)
-                router = Router(setup, mapping, functions_for(profile), executor)
+                print_export(mapper)
+                routed = mapper.routed_mapping(setup, profile, mapping)
+                router = Router(setup, routed, functions_for(profile), executor)
             except queue.Empty:
                 pass
             # Short timeout so keyboard knob turns are forwarded without noticeable lag.
@@ -224,6 +253,13 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(fn=cmd_import_mobiflight, share=None)
 
     sub.add_parser("gui", help="open the mapper window").set_defaults(fn=cmd_gui)
+
+    p = sub.add_parser("mobiflight-export", help="write mappings into MobiFlight projects (on by default)")
+    on_off = p.add_mutually_exclusive_group()
+    on_off.add_argument("--on", dest="enabled", action="store_const", const=True)
+    on_off.add_argument("--off", dest="enabled", action="store_const", const=False)
+    p.add_argument("--folder", type=Path, help="where to write the projects ('' for the default)")
+    p.set_defaults(fn=cmd_mobiflight_export, enabled=None)
 
     from msfs_mapper.runtime.keyboard import KEY_PRESETS, KNOB_ROLES, PRESS_ROLES
 
@@ -263,6 +299,12 @@ def main(argv: list[str] | None = None) -> int:
         return args.fn(args)
     except AIError as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except ModuleNotFoundError as exc:
+        if exc.name not in {"pygame", "SimConnect"}:
+            raise
+        print(f"error: {exc.name} is not installed; on the PC running MSFS: pip install msfs-mapper[sim]",
+              file=sys.stderr)
         return 1
 
 

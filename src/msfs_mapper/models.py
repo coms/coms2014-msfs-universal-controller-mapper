@@ -255,6 +255,12 @@ class KeyboardKnob(BaseModel):
     suppress: bool = True
 
 
+class Settings(BaseModel):
+    # Write each automatic mapping into a MobiFlight project so MobiFlight runs it.
+    export_mobiflight: bool = True
+    export_folder: str | None = Field(default=None, description="Default: <home>/mobiflight")
+
+
 class MappingProfile(BaseModel):
     aircraft_key: str
     setup_fingerprint: str

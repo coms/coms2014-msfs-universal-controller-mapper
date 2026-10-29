@@ -32,6 +32,9 @@ ACTION_ATTRS = ("command", "eventId", "event", "inputValue", "value")
 JOYSTICK_BUTTON = re.compile(r"button\s*(\d+)", re.IGNORECASE)
 
 
+GENERATED_TAG = "[msfs-mapper]"  # marks input configs written by mobiflight_export
+
+
 class MobiFlightError(ValueError):
     pass
 
@@ -92,6 +95,8 @@ def parse_project(source: Path | str) -> list[ExternalBinding]:
     for config in (c for section in inputs for c in section if _local(c.tag) == "config"):
         if _field(config, "active").lower() == "false":
             continue
+        if GENERATED_TAG in _field(config, "description"):
+            continue  # our own export: re-importing it must not hide our mapping from us
         settings = next((c for c in config if _local(c.tag) == "settings"), None)
         if settings is None:
             continue

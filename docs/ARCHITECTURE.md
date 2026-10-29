@@ -19,6 +19,7 @@
 | `runtime/keyboard.py` | Keyboard knob as a virtual encoder device; Windows low-level keyboard hook |
 | `runtime/learn.py` | Interactive index confirmation for device definitions |
 | `mobiflight.py` | Parse MobiFlight `.mcc` projects, recognise input functions, link `JS-` joystick inputs |
+| `mobiflight_export.py` | Write mappings into a copy of the MobiFlight project; `split` decides what MobiFlight runs |
 | `pipeline.py` | Cache-or-generate orchestration, AI with offline fallback |
 | `cli.py` | `devices`, `scan-setup`, `import-mobiflight`, `learn`, `map`, `run`, `gui` |
 | `gui.py` | tkinter window; slow work on a worker thread, results marshalled back with `after` |
@@ -45,6 +46,9 @@
   (index -1) whose controls carry the role the user picked, so the normal mapper assigns it. It is
   placed first so a picked role wins ties against other encoders. The hook swallows a key only
   while the router has a binding for it.
+- **Export and run agree on who drives what.** `mobiflight_export.split` is the single decision:
+  the exporter writes exactly its `exported` list and `Mapper.routed_mapping` gives `run` exactly
+  its `kept` list. Generated configs are tagged so import ignores them and export replaces them.
 - **One mapping per (aircraft, hardware set).** Plugging in a different combination of devices
   produces a separate mapping instead of corrupting the existing one.
 - **Claude calls** use structured outputs (pydantic models) with adaptive thinking and

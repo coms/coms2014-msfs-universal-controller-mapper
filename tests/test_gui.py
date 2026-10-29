@@ -123,5 +123,25 @@ def test_sharing_checkbox(app):
     app.set_mobiflight_sharing(True)
     app.wait_idle()
     heading = [r for r in rows(app.mapping_tree) if r[0] == "Heading bug"]
-    assert heading == [("Heading bug", "Bravo Throttle Quadrant", "ap_knob", "auto"),
+    assert heading == [("Heading bug", "Bravo Throttle Quadrant", "ap_knob", "auto, run by MobiFlight"),
                        ("Heading bug", "Cockpit Mega", "HDG encoder", "MobiFlight")]
+
+
+def test_export_checkbox(app):
+    app.title.set("Cessna 172")
+    app.import_mobiflight(PROJECT)
+    app.wait_idle()
+    app.build_mapping(False)
+    app.wait_idle()
+    assert app.export_mf.get()  # on by default
+    assert "controls written to" in app.export_info.get()
+    assert "Alpha Flight Controls: configure any one input" in app.export_info.get()
+    sources = {r[2]: r[3] for r in rows(app.mapping_tree) if r[1] == "Bravo Throttle Quadrant"}
+    assert sources["lever_1"] == "auto, run by MobiFlight"
+
+    app.export_mf.set(False)
+    app.set_export(False)
+    app.wait_idle()
+    assert app.export_info.get().startswith("Off")
+    sources = {r[2]: r[3] for r in rows(app.mapping_tree) if r[1] == "Bravo Throttle Quadrant"}
+    assert sources["lever_1"] == "auto"

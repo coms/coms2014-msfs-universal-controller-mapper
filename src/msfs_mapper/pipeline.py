@@ -14,6 +14,7 @@ from msfs_mapper.devices.discovery import build_setup
 from msfs_mapper.mapping.ai_mapper import ai_map
 from msfs_mapper.mapping.engine import functions_for, heuristic_map
 from msfs_mapper.mobiflight import ai_identify, import_project
+from msfs_mapper.mobiflight_export import ExportResult, export_path, export_project, split
 from msfs_mapper.models import (
     AircraftInfo,
     AircraftProfile,
@@ -32,6 +33,7 @@ class Mapper:
         self.store = store
         self.claude = claude
         self.catalog = DeviceCatalog(store.devices_dir)
+        self.last_export: ExportResult | None = None
 
     def setup(self, detected: list[DetectedDevice]) -> ControllerSetup:
         setup = build_setup(detected, self.catalog)
@@ -123,6 +125,7 @@ class Mapper:
             and {b.function for b in previous.external} == handled
             and previous.external_shared == sharing
         ):
+            self.export_mobiflight(setup, profile, previous)
             return previous
         mapping = None
         if self.claude:
@@ -132,4 +135,31 @@ class Mapper:
                 log.warning("AI mapping failed, using heuristic mapping: %s", exc)
         mapping = mapping or heuristic_map(setup, profile, previous, external)
         self.store.save_mapping(mapping)
+        self.export_mobiflight(setup, profile, mapping)
         return mapping
+
+    def export_mobiflight(
+        self, setup: ControllerSetup, profile: AircraftProfile, mapping: MappingProfile
+    ) -> ExportResult | None:
+        """Write the mapping into a MobiFlight project, if the export setting is on."""
+        settings = self.store.load_settings()
+        self.last_export = None
+        if not settings.export_mobiflight:
+            return None
+        imported = self.store.load_mobiflight()
+        folder = Path(settings.export_folder) if settings.export_folder else self.store.home / "mobiflight"
+        target = export_path(folder, imported, profile.aircraft.title)
+        try:
+            self.last_export = export_project(setup, mapping, functions_for(profile), imported, target)
+        except OSError as exc:
+            log.warning("could not write MobiFlight project %s: %s", target, exc)
+        return self.last_export
+
+    def routed_mapping(
+        self, setup: ControllerSetup, profile: AircraftProfile, mapping: MappingProfile
+    ) -> MappingProfile:
+        """The bindings `run` must drive itself: everything not handed to MobiFlight."""
+        if not self.store.load_settings().export_mobiflight:
+            return mapping
+        result = split(setup, mapping, functions_for(profile), self.store.load_mobiflight())
+        return mapping.model_copy(update={"bindings": result.kept})
