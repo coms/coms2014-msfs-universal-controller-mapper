@@ -224,6 +224,20 @@ class MobiFlightImport(BaseModel):
         return {b.function for b in self.bindings if b.function}
 
 
+class KeyboardKnob(BaseModel):
+    """A rotary knob on the keyboard that sends key presses (usually Volume Up / Down / Mute)."""
+
+    enabled: bool = False
+    name: str = "Keyboard knob"
+    keys: str = Field(default="volume", description="Key preset id, see runtime.keyboard.KEY_PRESETS")
+    # What the knob should drive: a role from the function catalog, or "encoder" to let the mapper pick.
+    knob_role: str = "encoder"
+    # Role for pressing the knob, or None to leave the press key alone (e.g. keep Mute working).
+    press_role: str | None = None
+    # Swallow the keys while they drive the sim, so Windows volume doesn't change as you turn.
+    suppress: bool = True
+
+
 class MappingProfile(BaseModel):
     aircraft_key: str
     setup_fingerprint: str

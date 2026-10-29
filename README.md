@@ -53,6 +53,7 @@ msfs-mapper devices                     # what is plugged in, and what the catal
 msfs-mapper learn 1                     # once per device: confirm button/axis numbers
 msfs-mapper scan-setup my-cockpit.jpg   # optional: positions + drafts for unknown devices
 msfs-mapper import-mobiflight cockpit.mcc  # leave MobiFlight panels' functions to MobiFlight
+msfs-mapper keyboard-knob --enable --drives hdg   # keyboard volume knob turns the heading bug
 msfs-mapper map --title "Cessna 172" --engine-type 0     # preview a mapping offline
 msfs-mapper run --dry-run               # watch the sim, print what would be sent
 msfs-mapper run                         # the real thing
@@ -71,7 +72,27 @@ msfs-mapper run                         # the real thing
   mapping but keeps locked bindings).
 - **Mapping** tab: each function with the control assigned to it, functions MobiFlight handles,
   and functions with no free control. Select rows and *Lock / unlock* to pin them.
+- **Keyboard knob…**: use the rotary/volume knob on your keyboard (see below).
 - **Use Claude AI** switch: off = templates and heuristics only.
+
+### Keyboard volume knob
+
+Keyboards with a volume roller or rotary knob (Corsair, Logitech, Keychron, macro pads...) can
+drive the sim as one more encoder. The knob is not a game controller: it sends keys, usually
+*Volume Up / Volume Down / Mute*. While `msfs-mapper run` is running, a Windows keyboard hook
+catches those keys even though MSFS has focus, and turns them into knob steps.
+
+- **Turning drives**: *Automatic* (any free encoder function), or pin it to heading bug,
+  selected altitude, selected vertical speed, elevator trim or flaps.
+- **Pressing does**: nothing by default, so Mute keeps working; or autopilot master, AP disconnect,
+  heading mode, altitude hold, parking brake.
+- **Stop Windows changing the volume** (default on): the keys are swallowed only while the
+  current aircraft's mapping actually uses the knob; otherwise your volume works as normal.
+- Keys: *Volume Up/Down/Mute*, *Next/Previous track/Play-Pause*, or *F13/F14/F15* if your keyboard
+  software lets you reprogram the knob (keeps it separate from your real media keys).
+
+Set it up in the window (*Keyboard knob…*) or with
+`msfs-mapper keyboard-knob --enable --keys volume --drives hdg --press ap`.
 
 ### MobiFlight panels
 
@@ -94,7 +115,7 @@ controls menu** (an empty profile per device) so the two don't fight.
 Saved data lives in `~/.msfs-mapper` (override with `--home` or `MSFS_MAPPER_HOME`):
 `mappings/` per aircraft and hardware set, `aircraft/` cached aircraft profiles, `devices/` learned
 or drafted device definitions, `positions.json` from the photo scan, `mobiflight.json` the imported
-MobiFlight inputs. Mappings are plain JSON —
+MobiFlight inputs, `keyboard.json` the keyboard knob settings. Mappings are plain JSON —
 set `"locked": true` on a binding to pin it.
 
 ## Status
@@ -107,6 +128,7 @@ This is an early scaffold. What works and what doesn't yet:
 | Desktop window (tkinter) | Implemented, tested under a virtual display |
 | MobiFlight `.mcc` import | Implemented and tested against a **hand-written** sample project; not yet checked against a real exported `.mcc` |
 | MobiFlight joystick button numbering (`Button N` → SDL index N-1) | Assumed, unverified |
+| Keyboard volume knob | Key decoding, mapping and window tested; the Windows keyboard hook itself is **not yet run on Windows** |
 | Function catalog (≈40 functions, standard SimConnect key events) | Implemented |
 | Checklist templates: single piston, turboprop, twin jet | Implemented; helicopter/glider missing |
 | Device catalog: Alpha, Bravo, Saitek pedals, T.16000M | **Button indices from community references, unverified** — run `learn` |

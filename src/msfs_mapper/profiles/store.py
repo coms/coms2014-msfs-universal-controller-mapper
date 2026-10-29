@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from msfs_mapper.models import AircraftProfile, MappingProfile, MobiFlightImport
+from msfs_mapper.models import AircraftProfile, KeyboardKnob, MappingProfile, MobiFlightImport
 
 
 def default_home() -> Path:
@@ -35,6 +35,13 @@ class Store:
 
     def save_positions(self, positions: dict[str, str]) -> Path:
         return _write(self.home / "positions.json", json.dumps(positions, indent=2, sort_keys=True))
+
+    def load_keyboard(self) -> KeyboardKnob:
+        path = self.home / "keyboard.json"
+        return KeyboardKnob.model_validate_json(path.read_text("utf-8")) if path.exists() else KeyboardKnob()
+
+    def save_keyboard(self, knob: KeyboardKnob) -> Path:
+        return _write(self.home / "keyboard.json", knob.model_dump_json(indent=2))
 
     def load_mobiflight(self) -> MobiFlightImport | None:
         path = self.home / "mobiflight.json"

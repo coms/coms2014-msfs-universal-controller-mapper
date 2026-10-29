@@ -16,6 +16,7 @@
 | `mapping/ai_mapper.py` | Claude proposes a mapping; `merge` validates and back-fills from the heuristic |
 | `profiles/store.py` | JSON persistence, keyed by aircraft and hardware fingerprint |
 | `runtime/bridge.py` | Input event → SimAction routing; SimConnect and dry-run executors |
+| `runtime/keyboard.py` | Keyboard knob as a virtual encoder device; Windows low-level keyboard hook |
 | `runtime/learn.py` | Interactive index confirmation for device definitions |
 | `mobiflight.py` | Parse MobiFlight `.mcc` projects, recognise input functions, link `JS-` joystick inputs |
 | `pipeline.py` | Cache-or-generate orchestration, AI with offline fallback |
@@ -38,6 +39,10 @@
   functions they operate are skipped by both mappers and listed in `MappingProfile.external`, and
   joystick buttons MobiFlight reads are removed from the free slots. The router never sends
   anything for external bindings.
+- **The keyboard knob is just another device.** It enters the setup as a virtual device
+  (index -1) whose controls carry the role the user picked, so the normal mapper assigns it. It is
+  placed first so a picked role wins ties against other encoders. The hook swallows a key only
+  while the router has a binding for it.
 - **One mapping per (aircraft, hardware set).** Plugging in a different combination of devices
   produces a separate mapping instead of corrupting the existing one.
 - **Claude calls** use structured outputs (pydantic models) with adaptive thinking and

@@ -27,11 +27,13 @@ from msfs_mapper.models import (
     AircraftProfile,
     ControllerSetup,
     DetectedDevice,
+    KeyboardKnob,
     MappingProfile,
     MobiFlightImport,
 )
 from msfs_mapper.pipeline import Mapper
 from msfs_mapper.profiles.store import Store
+from msfs_mapper.runtime.keyboard import KEY_PRESETS, KEYBOARD_INDEX, KNOB_ROLES, PRESS_ROLES, choice_for
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +86,7 @@ class App:
         ttk.Button(bar, text="Scan setup photo…", command=self.ask_photo).pack(side="left", padx=4)
         ttk.Button(bar, text="Import MobiFlight project…", command=self.ask_mobiflight).pack(side="left")
         ttk.Button(bar, text="Clear MobiFlight", command=self.clear_mobiflight).pack(side="left", padx=4)
+        ttk.Button(bar, text="Keyboard knob…", command=self.open_knob_dialog).pack(side="left")
         ttk.Checkbutton(bar, text="Use Claude AI", variable=self.use_ai).pack(side="right")
 
         hardware = ttk.LabelFrame(self.root, text="Hardware")
@@ -189,12 +192,18 @@ class App:
         show("MSFS Controller Mapper", text, parent=self.root)
 
     def _poll(self) -> None:
-        while True:
-            try:
-                self._results.get_nowait()()
-            except queue.Empty:
-                break
-        self.root.after(100, self._poll)
+        try:
+            while True:
+                try:
+                    callback = self._results.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    callback()
+                except Exception:  # noqa: BLE001 - one bad result must not stop the poll loop
+                    log.exception("updating the window failed")
+        finally:
+            self.root.after(100, self._poll)
 
     def wait_idle(self, timeout: float = 10.0) -> None:
         """Pump events until background tasks are finished (used by tests and scripts)."""
@@ -235,6 +244,11 @@ class App:
     def show_devices(self) -> None:
         self.devices.delete(*self.devices.get_children())
         for d in self.setup.devices:
+            if d.detected.index == KEYBOARD_INDEX:
+                self.devices.insert("", "end", values=(
+                    d.detected.name, "Keyboard keys", KEY_PRESETS[self.store.load_keyboard().keys][0],
+                    "Rotary knob", d.position, f"{len(d.controls)} controls"))
+                continue
             catalog = f"{d.definition.manufacturer} {d.definition.name}".strip() if d.definition else "unknown"
             verified = sum(c.verified for c in d.controls)
             self.devices.insert("", "end", values=(
@@ -270,6 +284,63 @@ class App:
                 self.alert("\n".join(messages))
 
         self.run_task("Analysing setup photo", lambda: mapper.scan_photo(photo, self.detected), done)
+
+    # ----------------------------------------------------------- keyboard knob
+
+    def open_knob_dialog(self) -> None:
+        knob = self.store.load_keyboard()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Keyboard knob")
+        dialog.transient(self.root)
+        frame = ttk.Frame(dialog, padding=12)
+        frame.pack(fill="both", expand=True)
+
+        enabled = tk.BooleanVar(value=knob.enabled)
+        keys = tk.StringVar(value=KEY_PRESETS[knob.keys][0])
+        drives = tk.StringVar(value=KNOB_ROLES[choice_for(KNOB_ROLES, knob.knob_role)][0])
+        press = tk.StringVar(value=PRESS_ROLES[choice_for(PRESS_ROLES, knob.press_role)][0])
+        suppress = tk.BooleanVar(value=knob.suppress)
+
+        ttk.Checkbutton(frame, text="Use the rotary knob on my keyboard", variable=enabled).grid(
+            row=0, column=0, columnspan=2, sticky="w")
+        for row, (label, var, values) in enumerate([
+            ("Knob sends", keys, [label for label, _ in KEY_PRESETS.values()]),
+            ("Turning drives", drives, [label for label, _ in KNOB_ROLES.values()]),
+            ("Pressing does", press, [label for label, _ in PRESS_ROLES.values()]),
+        ], start=1):
+            ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=4)
+            ttk.Combobox(frame, textvariable=var, values=values, state="readonly", width=38).grid(
+                row=row, column=1, sticky="we", padx=(8, 0))
+        ttk.Checkbutton(frame, text="Stop Windows changing the volume while the knob flies the plane",
+                        variable=suppress).grid(row=4, column=0, columnspan=2, sticky="w", pady=4)
+        ttk.Label(frame, foreground="gray", wraplength=420, text=(
+            "Most volume knobs send Volume Up / Down / Mute. If your keyboard software lets you "
+            "reprogram the knob, F13 / F14 / F15 keeps it separate from your media keys. "
+            "The knob is read while `msfs-mapper run` is running (Windows only).")).grid(
+            row=5, column=0, columnspan=2, sticky="w", pady=(4, 8))
+
+        def by_label(choices: dict, label: str) -> str:
+            return next(cid for cid, (text, *_) in choices.items() if text == label)
+
+        def save() -> None:
+            self.save_knob(KeyboardKnob(
+                enabled=enabled.get(),
+                keys=by_label(KEY_PRESETS, keys.get()),
+                knob_role=KNOB_ROLES[by_label(KNOB_ROLES, drives.get())][1],
+                press_role=PRESS_ROLES[by_label(PRESS_ROLES, press.get())][1],
+                suppress=suppress.get(),
+            ))
+            dialog.destroy()
+
+        ttk.Button(frame, text="Save", command=save).grid(row=6, column=1, sticky="e")
+
+    def save_knob(self, knob: KeyboardKnob) -> None:
+        self.store.save_keyboard(knob)
+        self.setup = self.mapper().setup(self.detected)
+        self.show_devices()
+        self.status.set(f"Keyboard knob {'enabled' if knob.enabled else 'disabled'}")
+        if self.profile:
+            self.build_mapping(False)
 
     # -------------------------------------------------------------- MobiFlight
 

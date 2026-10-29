@@ -35,6 +35,12 @@ class Mapper:
 
     def setup(self, detected: list[DetectedDevice]) -> ControllerSetup:
         setup = build_setup(detected, self.catalog)
+        knob = self.store.load_keyboard()
+        if knob.enabled:
+            from msfs_mapper.runtime.keyboard import knob_device
+
+            # First, so a role the user picked for the knob wins ties against other encoders.
+            setup.devices.insert(0, knob_device(knob))
         positions = self.store.load_positions()
         for device in setup.devices:
             device.position = positions.get(device.key, device.position)

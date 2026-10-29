@@ -63,6 +63,25 @@ def cmd_import_mobiflight(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_keyboard_knob(args: argparse.Namespace) -> int:
+    from msfs_mapper.runtime.keyboard import KEY_PRESETS, KNOB_ROLES, PRESS_ROLES, choice_for
+
+    store = Store(args.home)
+    update = {k: v for k, v in {"enabled": args.enabled, "keys": args.keys, "suppress": args.suppress}.items()
+              if v is not None}
+    if args.drives:
+        update["knob_role"] = KNOB_ROLES[args.drives][1]
+    if args.press:
+        update["press_role"] = PRESS_ROLES[args.press][1]
+    knob = store.load_keyboard().model_copy(update=update)
+    store.save_keyboard(knob)
+    print(f"keyboard knob {'enabled' if knob.enabled else 'disabled'}: keys {KEY_PRESETS[knob.keys][0]};"
+          f" turning drives {KNOB_ROLES[choice_for(KNOB_ROLES, knob.knob_role)][0]};"
+          f" pressing does {PRESS_ROLES[choice_for(PRESS_ROLES, knob.press_role)][0]};"
+          f" keys are {'swallowed' if knob.suppress else 'passed on to Windows'} while mapped")
+    return 0
+
+
 def cmd_gui(args: argparse.Namespace) -> int:
     from msfs_mapper.gui import run
 
@@ -134,6 +153,17 @@ def cmd_run(args: argparse.Namespace) -> int:
     sim = SimConnect()
     source = PygameInputSource()
     setup = mapper.setup(_detect())
+    router = None
+    knob = None
+    if mapper.store.load_keyboard().enabled:
+        from msfs_mapper.runtime.keyboard import KEYBOARD_INDEX, KeyboardKnobHook
+
+        # Swallow knob keys only while the current aircraft's mapping uses them.
+        knob = KeyboardKnobHook(
+            mapper.store.load_keyboard(),
+            capture=lambda button: router is not None and router.handles(KEYBOARD_INDEX, button),
+        )
+        knob.start()
     executor = LogExecutor() if args.dry_run else SimConnectExecutor(sim)
     loaded: queue.Queue[AircraftInfo] = queue.Queue()
     aircraft_source = SimConnectAircraftSource(sim)
@@ -144,7 +174,6 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     threading.Thread(target=watcher, daemon=True).start()
     print("Waiting for an aircraft to load... (Ctrl+C to quit)")
-    router = None
     try:
         while True:
             try:
@@ -155,11 +184,16 @@ def cmd_run(args: argparse.Namespace) -> int:
                 router = Router(setup, mapping, functions_for(profile), executor)
             except queue.Empty:
                 pass
-            for event in source.events(timeout=0.5):
+            # Short timeout so keyboard knob turns are forwarded without noticeable lag.
+            events = list(source.events(timeout=0.02)) + (list(knob.drain()) if knob else [])
+            for event in events:
                 if router:
                     router.handle(event)
     except KeyboardInterrupt:
         return 0
+    finally:
+        if knob:
+            knob.stop()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -180,6 +214,22 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(fn=cmd_import_mobiflight)
 
     sub.add_parser("gui", help="open the mapper window").set_defaults(fn=cmd_gui)
+
+    from msfs_mapper.runtime.keyboard import KEY_PRESETS, KNOB_ROLES, PRESS_ROLES
+
+    p = sub.add_parser("keyboard-knob", help="use a keyboard volume knob as an encoder")
+    on_off = p.add_mutually_exclusive_group()
+    on_off.add_argument("--enable", dest="enabled", action="store_const", const=True)
+    on_off.add_argument("--disable", dest="enabled", action="store_const", const=False)
+    p.add_argument("--keys", choices=list(KEY_PRESETS), help="which keys the knob sends")
+    p.add_argument("--drives", choices=list(KNOB_ROLES), help="what turning the knob controls")
+    p.add_argument("--press", choices=list(PRESS_ROLES), help="what pressing the knob does")
+    suppress = p.add_mutually_exclusive_group()
+    suppress.add_argument("--suppress", dest="suppress", action="store_const", const=True,
+                          help="stop Windows changing the volume while the knob is mapped (default)")
+    suppress.add_argument("--no-suppress", dest="suppress", action="store_const", const=False,
+                          help="let Windows still change the volume")
+    p.set_defaults(fn=cmd_keyboard_knob, enabled=None, suppress=None)
 
     p = sub.add_parser("learn", help="confirm a device's button/axis indices interactively")
     p.add_argument("index", type=int, help="device index from `devices`")

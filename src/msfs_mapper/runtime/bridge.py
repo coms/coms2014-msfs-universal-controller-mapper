@@ -112,6 +112,9 @@ class Router:
             case ControlKind.HAT:
                 self._hats[(index, control.hat)] = (actions.inc, actions.dec)
 
+    def handles(self, device: int, button: int) -> bool:
+        return (device, button, True) in self._buttons or (device, button, False) in self._buttons
+
     def handle(self, event: InputEvent) -> None:
         if isinstance(event, AxisMoved):
             key = (event.device, event.axis)

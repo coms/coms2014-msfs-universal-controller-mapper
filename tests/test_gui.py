@@ -1,6 +1,7 @@
 """Drives the real Tk window. Skipped where Tk or a display is unavailable (e.g. headless CI);
 run under `xvfb-run` to include it."""
 
+import gc
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,10 @@ def app(tmp_path):
     app.wait_idle()
     yield app
     root.destroy()
+    del app, root
+    # Collect this window's Tk variables now, on the main thread. Left for later, a worker
+    # thread may collect them, and Tkinter then waits ~1s per variable for a main loop.
+    gc.collect()
 
 
 def rows(tree):
@@ -87,3 +92,18 @@ def test_bad_project_reports_error(app, tmp_path):
     app.import_mobiflight(bad)
     app.wait_idle()
     assert app.alerts and "broken.mcc" in app.alerts[0]
+
+
+def test_keyboard_knob_settings(app):
+    from msfs_mapper.models import KeyboardKnob
+
+    app.title.set("Cessna 172")
+    app.build_mapping(False)
+    app.wait_idle()
+    app.save_knob(KeyboardKnob(enabled=True, knob_role="encoder.hdg"))
+    app.wait_idle()
+    assert rows(app.devices)[0][:2] == ("Keyboard knob", "Keyboard keys")
+    assert ("Heading bug", "Keyboard knob", "knob", "auto") in rows(app.mapping_tree)
+
+    app.open_knob_dialog()  # builds without errors
+    app.root.update()
