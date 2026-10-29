@@ -11,7 +11,14 @@ from pathlib import Path
 
 from msfs_mapper.ai import AIError, Claude
 from msfs_mapper.mapping.engine import functions_for
-from msfs_mapper.models import AircraftInfo, AircraftProfile, ControllerSetup, MappingProfile
+from msfs_mapper.models import (
+    AircraftInfo,
+    AircraftProfile,
+    ControllerSetup,
+    DetectedDevice,
+    MappingProfile,
+    SetupDevice,
+)
 from msfs_mapper.pipeline import Mapper
 from msfs_mapper.profiles.store import Store
 
@@ -85,12 +92,6 @@ def cmd_keyboard_knob(args: argparse.Namespace) -> int:
           f" pressing does {PRESS_ROLES[choice_for(PRESS_ROLES, knob.press_role)][0]};"
           f" keys are {'swallowed' if knob.suppress else 'passed on to Windows'} while mapped")
     return 0
-
-
-def cmd_gui(args: argparse.Namespace) -> int:
-    from msfs_mapper.gui import run
-
-    return run(args.home)
 
 
 def cmd_learn(args: argparse.Namespace) -> int:
@@ -174,17 +175,48 @@ def cmd_mobiflight_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gui(args: argparse.Namespace) -> int:
+    from msfs_mapper.gui import launch_gui
+
+    launch_gui(home=args.home, no_ai=args.no_ai)
+    return 0
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     from SimConnect import SimConnect
 
     from msfs_mapper.aircraft.detect import SimConnectAircraftSource, watch_aircraft
     from msfs_mapper.runtime.bridge import LogExecutor, Router, SimConnectExecutor
-    from msfs_mapper.runtime.inputs import PygameInputSource
+    from msfs_mapper.devices.mobiflight import mega_definition
+    from msfs_mapper.runtime.inputs import MobiFlightSerialInputSource, PygameInputSource
 
     mapper = _mapper(args)
     sim = SimConnect()
     source = PygameInputSource()
     setup = mapper.setup(_detect())
+    mobiflight_source = None
+    if args.mobiflight_port:
+        index = max((device.detected.index for device in setup.devices), default=-1) + 1
+        detected = DetectedDevice(
+            index=index,
+            name=f"MobiFlight Mega ({args.mobiflight_buttons}B/{args.mobiflight_encoders}E)",
+            num_buttons=args.mobiflight_buttons + args.mobiflight_encoders * 2,
+        )
+        setup.devices.append(
+            SetupDevice(detected=detected, definition=mega_definition(
+                args.mobiflight_buttons, args.mobiflight_encoders
+            ))
+        )
+        mobiflight_source = MobiFlightSerialInputSource(
+            args.mobiflight_port,
+            index,
+            args.mobiflight_buttons,
+            args.mobiflight_encoders,
+        )
+        print(
+            f"Connected MobiFlight Mega on {args.mobiflight_port} "
+            f"({args.mobiflight_buttons} buttons, {args.mobiflight_encoders} encoders)"
+        )
     router = None
     knob = None
     if mapper.store.load_keyboard().enabled:
@@ -218,8 +250,12 @@ def cmd_run(args: argparse.Namespace) -> int:
                 router = Router(setup, routed, functions_for(profile), executor)
             except queue.Empty:
                 pass
-            # Short timeout so keyboard knob turns are forwarded without noticeable lag.
-            events = list(source.events(timeout=0.02)) + (list(knob.drain()) if knob else [])
+            # Short timeout so keyboard knob and Mega events are forwarded without noticeable lag.
+            events = list(source.events(timeout=0.02))
+            if knob:
+                events.extend(knob.drain())
+            if mobiflight_source:
+                events.extend(mobiflight_source.events(timeout=0))
             for event in events:
                 if router:
                     router.handle(event)
@@ -228,6 +264,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     finally:
         if knob:
             knob.stop()
+        if mobiflight_source:
+            mobiflight_source.close()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -289,8 +327,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--refresh", action="store_true", help="regenerate even if a mapping is saved")
     p.set_defaults(fn=cmd_map)
 
+
     p = sub.add_parser("run", help="auto-map each aircraft as it loads and drive the sim")
     p.add_argument("--dry-run", action="store_true", help="log actions instead of sending them")
+    p.add_argument("--mobiflight-port", help="COM port for the companion Mega serial firmware")
+    p.add_argument("--mobiflight-buttons", type=int, default=8, help="number of configured Mega buttons")
+    p.add_argument("--mobiflight-encoders", type=int, default=2, help="number of configured Mega encoders")
     p.set_defaults(fn=cmd_run)
 
     args = parser.parse_args(argv)

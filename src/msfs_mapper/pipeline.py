@@ -163,3 +163,15 @@ class Mapper:
             return mapping
         result = split(setup, mapping, functions_for(profile), self.store.load_mobiflight())
         return mapping.model_copy(update={"bindings": result.kept})
+
+
+def generate_mapping(
+    mapper: Mapper,
+    detected: list[DetectedDevice],
+    aircraft: AircraftInfo,
+) -> tuple[ControllerSetup, AircraftProfile, MappingProfile]:
+    """Build a fresh mapping using the same pipeline as the CLI."""
+    setup = mapper.setup(detected)
+    profile = mapper.aircraft_profile(aircraft, refresh=True)
+    mapping = mapper.mapping(setup, profile, refresh=True)
+    return setup, profile, mapping

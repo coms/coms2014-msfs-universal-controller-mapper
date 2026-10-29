@@ -20,6 +20,7 @@ import anthropic
 
 from msfs_mapper.ai import AIError, Claude
 from msfs_mapper.data import function_catalog
+from msfs_mapper.firmware_config import load_mobiflight_config, save_mobiflight_config
 from msfs_mapper.mapping.engine import functions_for
 from msfs_mapper.mobiflight import MobiFlightError
 from msfs_mapper.mobiflight_export import ExportResult
@@ -33,7 +34,7 @@ from msfs_mapper.models import (
     MappingProfile,
     MobiFlightImport,
 )
-from msfs_mapper.pipeline import Mapper
+from msfs_mapper.pipeline import Mapper, generate_mapping  # noqa: F401 - generate_mapping re-exported
 from msfs_mapper.profiles.store import Store
 from msfs_mapper.runtime.keyboard import KEY_PRESETS, KEYBOARD_INDEX, KNOB_ROLES, PRESS_ROLES, choice_for
 
@@ -56,6 +57,7 @@ class App:
         store: Store,
         detect: Callable[[], list[DetectedDevice]] = detect_usb,
         claude_factory: Callable[[], Claude] = Claude,
+        use_ai: bool = True,
     ):
         self.root = root
         self.store = store
@@ -73,7 +75,7 @@ class App:
         root.title("MSFS Controller Mapper")
         root.geometry("1000x700")
         root.minsize(760, 520)
-        self.use_ai = tk.BooleanVar(value=True)
+        self.use_ai = tk.BooleanVar(value=use_ai)
         self.status = tk.StringVar(value="Ready")
         self._build()
         self.show_export()
@@ -91,7 +93,7 @@ class App:
         ttk.Button(bar, text="Import MobiFlight project…", command=self.ask_mobiflight).pack(side="left")
         ttk.Button(bar, text="Clear MobiFlight", command=self.clear_mobiflight).pack(side="left", padx=4)
         ttk.Button(bar, text="Keyboard knob…", command=self.open_knob_dialog).pack(side="left")
-        ttk.Checkbutton(bar, text="Use Claude AI", variable=self.use_ai).pack(side="right")
+        ttk.Button(bar, text="Configure Mega pins…", command=self.configure_mega).pack(side="left", padx=4)
 
         hardware = ttk.LabelFrame(self.root, text="Hardware")
         hardware.pack(fill="x", **pad)
@@ -122,6 +124,7 @@ class App:
         ttk.Button(buttons, text="Build mapping", command=lambda: self.build_mapping(False)).pack(
             side="left", padx=4)
         ttk.Button(buttons, text="Rebuild", command=lambda: self.build_mapping(True)).pack(side="left")
+        ttk.Checkbutton(buttons, text="Use Claude AI", variable=self.use_ai).pack(side="left", padx=12)
         aircraft.columnconfigure(1, weight=1)
 
         tabs = ttk.Notebook(self.root)
@@ -360,6 +363,58 @@ class App:
         if self.profile:
             self.build_mapping(False)
 
+    # ------------------------------------------------- custom-firmware Mega pins
+
+    def configure_mega(self) -> None:
+        """Edit the wiring of the companion Mega sketch (see upload_mobiflight.bat)."""
+        config_path = self.store.home / "mobiflight_mega.json"
+        try:
+            config = load_mobiflight_config(config_path)
+        except ValueError as exc:
+            self.alert(f"Invalid Mega pin configuration:\n\n{exc}", error=True)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("MobiFlight Mega pin configuration")
+        dialog.transient(self.root)
+        frame = ttk.Frame(dialog, padding=12)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Button digital pins (comma-separated)").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        button_pins = tk.StringVar(value=", ".join(str(pin) for pin in config["button_pins"]))
+        ttk.Entry(frame, textvariable=button_pins, width=52).grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        ttk.Label(
+            frame, text="Encoder interrupt pin pairs (one A,B pair per encoder; separate pairs with semicolons)",
+        ).grid(row=2, column=0, sticky="w", pady=(0, 4))
+        encoder_pins = tk.StringVar(value="; ".join(f"{a}, {b}" for a, b in config["encoder_pins"]))
+        ttk.Entry(frame, textvariable=encoder_pins, width=52).grid(row=3, column=0, sticky="ew", pady=(0, 6))
+        ttk.Label(
+            frame, wraplength=440,
+            text="Example: buttons 22,23,24; encoders 2,3; 18,19. Encoder pins must support interrupts.",
+        ).grid(row=4, column=0, sticky="w", pady=(0, 10))
+
+        def save() -> None:
+            try:
+                saved = self.save_mega_pins(button_pins.get(), encoder_pins.get())
+            except ValueError as exc:
+                messagebox.showerror("Invalid pin configuration", str(exc), parent=dialog)
+                return
+            self.status.set(f"Mega pin configuration saved to {saved}")
+            dialog.destroy()
+
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=5, column=0, sticky="e")
+        ttk.Button(buttons, text="Cancel", command=dialog.destroy).pack(side="right")
+        ttk.Button(buttons, text="Save configuration", command=save).pack(side="right", padx=(0, 8))
+
+    def save_mega_pins(self, button_text: str, encoder_text: str) -> Path:
+        """Parse '22, 23' and '2, 3; 18, 19' and save them; raises ValueError when invalid."""
+        buttons = [int(pin) for pin in button_text.split(",") if pin.strip()]
+        encoders = [
+            [int(pin) for pin in pair.split(",")]
+            for pair in encoder_text.split(";") if pair.strip()
+        ]
+        return save_mobiflight_config(
+            self.store.home / "mobiflight_mega.json", {"button_pins": buttons, "encoder_pins": encoders})
+
     # -------------------------------------------------------------- MobiFlight
 
     def ask_mobiflight(self) -> None:
@@ -595,16 +650,15 @@ class App:
         return functions_for(self.profile) if self.profile else function_catalog()
 
 
-def run(home: Path | None = None) -> int:
+def launch_gui(home: Path | None = None, no_ai: bool = False) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     root = tk.Tk()
-    App(root, Store(home))
+    App(root, Store(home), use_ai=not no_ai)
     root.mainloop()
-    return 0
 
 
 def main() -> None:
-    raise SystemExit(run())
+    launch_gui()
 
 
 if __name__ == "__main__":

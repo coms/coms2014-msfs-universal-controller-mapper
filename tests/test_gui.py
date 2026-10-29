@@ -145,3 +145,14 @@ def test_export_checkbox(app):
     assert app.export_info.get().startswith("Off")
     sources = {r[2]: r[3] for r in rows(app.mapping_tree) if r[1] == "Bravo Throttle Quadrant"}
     assert sources["lever_1"] == "auto"
+
+
+def test_mega_pins_dialog(app):
+    import json
+
+    saved = app.save_mega_pins("30, 31", "2, 3; 18, 19")
+    assert json.loads(saved.read_text()) == {"button_pins": [30, 31], "encoder_pins": [[2, 3], [18, 19]]}
+    with pytest.raises(ValueError):
+        app.save_mega_pins("22", "4, 5")  # not interrupt pins
+    app.configure_mega()  # builds without errors, prefilled from the saved file
+    app.root.update()
