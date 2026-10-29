@@ -14,6 +14,7 @@ from msfs_mapper.models import (
     Binding,
     ControllerSetup,
     MappingProfile,
+    MobiFlightImport,
     PhysicalControl,
     SetupDevice,
     SimFunction,
@@ -68,15 +69,34 @@ def slots(setup: ControllerSetup) -> list[Slot]:
     ]
 
 
+def control_buttons(control: PhysicalControl) -> set[int]:
+    buttons = {control.button, control.on_button, control.off_button, control.inc_button, control.dec_button}
+    return buttons - {None}
+
+
+def free_slots(setup: ControllerSetup, external: MobiFlightImport | None) -> list[Slot]:
+    """All slots minus controls whose buttons MobiFlight already reads on the same joystick."""
+    reserved = {
+        (b.usb_device, b.button) for b in (external.bindings if external else [])
+        if b.usb_device and b.button is not None
+    }
+    return [
+        s for s in slots(setup)
+        if not any((s.device.key, button) in reserved for button in control_buttons(s.control))
+    ]
+
+
 def heuristic_map(
     setup: ControllerSetup,
     profile: AircraftProfile,
     previous: MappingProfile | None = None,
+    external: MobiFlightImport | None = None,
 ) -> MappingProfile:
     functions = functions_for(profile)
-    available = slots(setup)
+    available = free_slots(setup, external)
     bindings: list[Binding] = []
-    done: set[str] = set()
+    # Functions MobiFlight already drives stay with MobiFlight.
+    done: set[str] = external.handled_functions() if external else set()
 
     # User-pinned bindings survive re-mapping as long as the hardware is still there.
     for binding in previous.bindings if previous else []:
@@ -111,6 +131,7 @@ def heuristic_map(
         setup_fingerprint=setup.fingerprint(),
         bindings=bindings,
         unassigned_functions=unassigned,
+        external=[b for b in external.bindings if b.function] if external else [],
         source="heuristic",
     )
 

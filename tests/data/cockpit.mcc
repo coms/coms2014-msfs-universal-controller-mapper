@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hand-written fixture in the MobiFlight Connector .mcc layout (attribute-style settings). -->
+<MobiflightConnector>
+  <outputs>
+    <config guid="0a1b">
+      <active>true</active>
+      <description>Gear light (outputs are ignored by the import)</description>
+      <settings serial="Cockpit Mega/ SN-3c1-c2a" />
+    </config>
+  </outputs>
+  <inputs>
+    <config guid="1">
+      <active>true</active>
+      <description>Gear lever</description>
+      <settings xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" msdata:InstanceType="MobiFlight.InputConfigItem" serial="Cockpit Mega/ SN-3c1-c2a" name="Gear switch" type="Button">
+        <button>
+          <onPress type="MSFS2020CustomInputAction" command="(&gt;K:GEAR_DOWN)" presetId="a1" />
+          <onRelease type="MSFS2020CustomInputAction" command="(&gt;K:GEAR_UP)" presetId="a2" />
+        </button>
+      </settings>
+    </config>
+    <config guid="2">
+      <active>true</active>
+      <description>Heading knob</description>
+      <settings serial="Cockpit Mega/ SN-3c1-c2a" name="HDG encoder" type="Encoder">
+        <encoder>
+          <onLeft type="MSFS2020CustomInputAction" command="(&gt;K:HEADING_BUG_DEC)" />
+          <onLeftFast type="MSFS2020CustomInputAction" command="(&gt;K:HEADING_BUG_DEC) (&gt;K:HEADING_BUG_DEC)" />
+          <onRight type="MSFS2020CustomInputAction" command="(&gt;K:HEADING_BUG_INC)" />
+        </encoder>
+      </settings>
+    </config>
+    <config guid="3">
+      <active>true</active>
+      <description>Landing light (event id action)</description>
+      <settings serial="Overhead Nano/ SN-77" name="LDG LT" type="Button">
+        <button>
+          <onPress type="MSFS2020EventIdInputAction" eventId="LANDING_LIGHTS_ON" />
+          <onRelease type="MSFS2020EventIdInputAction" eventId="LANDING_LIGHTS_OFF" />
+        </button>
+      </settings>
+    </config>
+    <config guid="4">
+      <active>true</active>
+      <description>A320 seat belt signs</description>
+      <settings serial="Overhead Nano/ SN-77" name="SEATBELT" type="Button">
+        <button>
+          <onPress type="MSFS2020CustomInputAction" command="1 (&gt;L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position)" />
+        </button>
+      </settings>
+    </config>
+    <config guid="5">
+      <active>false</active>
+      <description>Disabled input</description>
+      <settings serial="Overhead Nano/ SN-77" name="OLD" type="Button">
+        <button><onPress type="MSFS2020CustomInputAction" command="(&gt;K:STROBES_TOGGLE)" /></button>
+      </settings>
+    </config>
+    <config guid="6">
+      <active>true</active>
+      <description>Bravo button used by MobiFlight for the parking brake</description>
+      <settings serial="Bravo Throttle Quadrant / JS-{1234-ABCD}" name="Button 8" type="Button">
+        <button><onPress type="MSFS2020CustomInputAction" command="(&gt;K:PARKING_BRAKES)" /></button>
+      </settings>
+    </config>
+  </inputs>
+</MobiflightConnector>

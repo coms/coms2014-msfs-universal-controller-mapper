@@ -47,20 +47,54 @@ USB input ──► Router ──► SimConnect key events ◄──────
 pip install -e ".[sim]"
 setx ANTHROPIC_API_KEY "sk-ant-..."     # or `ant auth login`; use --no-ai to stay offline
 
+msfs-mapper-gui                         # the window: everything below, point and click
+
 msfs-mapper devices                     # what is plugged in, and what the catalog knows
 msfs-mapper learn 1                     # once per device: confirm button/axis numbers
 msfs-mapper scan-setup my-cockpit.jpg   # optional: positions + drafts for unknown devices
+msfs-mapper import-mobiflight cockpit.mcc  # leave MobiFlight panels' functions to MobiFlight
 msfs-mapper map --title "Cessna 172" --engine-type 0     # preview a mapping offline
 msfs-mapper run --dry-run               # watch the sim, print what would be sent
 msfs-mapper run                         # the real thing
 ```
+
+### The window
+
+`msfs-mapper-gui` (or `msfs-mapper gui`) opens one window with:
+
+- **Hardware**: USB controllers with their catalog match, position and how many controls are
+  verified, plus every imported MobiFlight panel.
+- **Import MobiFlight project…**: pick your `.mcc` file. The *MobiFlight inputs* tab lists every
+  input, what it does, and which function it was recognised as. Double-click an input to set or
+  correct its function by hand.
+- **Aircraft**: type a title or *Read from sim*, then *Build mapping* (*Rebuild* ignores the saved
+  mapping but keeps locked bindings).
+- **Mapping** tab: each function with the control assigned to it, functions MobiFlight handles,
+  and functions with no free control. Select rows and *Lock / unlock* to pin them.
+- **Use Claude AI** switch: off = templates and heuristics only.
+
+### MobiFlight panels
+
+MobiFlight boards are Arduinos on a serial port, so they never show up as game controllers.
+Importing your MobiFlight Connector project (`.mcc`) tells the mapper what they already do:
+
+- each input's commands (`(>K:GEAR_DOWN)`, event ids, presets) are matched to the function
+  catalog; with AI on, Claude identifies the rest (add-on L:vars, H:events);
+- functions a MobiFlight input already operates are **left to MobiFlight**: they are not mapped a
+  second time onto your Bravo or Alpha;
+- joysticks that MobiFlight reads directly (serial `JS-…`, e.g. a Bravo button you configured in
+  MobiFlight) have those buttons reserved, so the same button never fires two actions.
+
+MobiFlight keeps running your boards; nothing is written to your `.mcc` file. A saved mapping is
+rebuilt automatically when the import changes.
 
 Because `msfs-mapper` drives the sim itself, **clear the bindings for these devices in the MSFS
 controls menu** (an empty profile per device) so the two don't fight.
 
 Saved data lives in `~/.msfs-mapper` (override with `--home` or `MSFS_MAPPER_HOME`):
 `mappings/` per aircraft and hardware set, `aircraft/` cached aircraft profiles, `devices/` learned
-or drafted device definitions, `positions.json` from the photo scan. Mappings are plain JSON —
+or drafted device definitions, `positions.json` from the photo scan, `mobiflight.json` the imported
+MobiFlight inputs. Mappings are plain JSON —
 set `"locked": true` on a binding to pin it.
 
 ## Status
@@ -70,6 +104,9 @@ This is an early scaffold. What works and what doesn't yet:
 | Area | State |
 | --- | --- |
 | Mapping engine, AI refinement + validation, profile storage | Implemented, unit-tested |
+| Desktop window (tkinter) | Implemented, tested under a virtual display |
+| MobiFlight `.mcc` import | Implemented and tested against a **hand-written** sample project; not yet checked against a real exported `.mcc` |
+| MobiFlight joystick button numbering (`Button N` → SDL index N-1) | Assumed, unverified |
 | Function catalog (≈40 functions, standard SimConnect key events) | Implemented |
 | Checklist templates: single piston, turboprop, twin jet | Implemented; helicopter/glider missing |
 | Device catalog: Alpha, Bravo, Saitek pedals, T.16000M | **Button indices from community references, unverified** — run `learn` |
@@ -86,5 +123,6 @@ pytest
 ```
 
 The tests use a fake Claude client and scripted input events, so they run anywhere (no Windows,
-sim, hardware, or API key needed). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the
+sim, hardware, or API key needed). The GUI tests need Tk and a display; on a headless Linux box run
+`xvfb-run -a pytest`, otherwise they are skipped. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the
 module layout and how to add devices, functions and templates.

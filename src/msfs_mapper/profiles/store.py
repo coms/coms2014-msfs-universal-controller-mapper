@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from msfs_mapper.models import AircraftProfile, MappingProfile
+from msfs_mapper.models import AircraftProfile, MappingProfile, MobiFlightImport
 
 
 def default_home() -> Path:
@@ -35,6 +35,16 @@ class Store:
 
     def save_positions(self, positions: dict[str, str]) -> Path:
         return _write(self.home / "positions.json", json.dumps(positions, indent=2, sort_keys=True))
+
+    def load_mobiflight(self) -> MobiFlightImport | None:
+        path = self.home / "mobiflight.json"
+        return MobiFlightImport.model_validate_json(path.read_text("utf-8")) if path.exists() else None
+
+    def save_mobiflight(self, imported: MobiFlightImport) -> Path:
+        return _write(self.home / "mobiflight.json", imported.model_dump_json(indent=2))
+
+    def clear_mobiflight(self) -> None:
+        (self.home / "mobiflight.json").unlink(missing_ok=True)
 
     def load_mapping(self, aircraft_key: str, fingerprint: str) -> MappingProfile | None:
         path = self._mapping_path(aircraft_key, fingerprint)

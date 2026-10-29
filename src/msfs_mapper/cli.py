@@ -40,27 +40,33 @@ def cmd_devices(args: argparse.Namespace) -> int:
 
 
 def cmd_scan_setup(args: argparse.Namespace) -> int:
-    from msfs_mapper.vision.layout import analyse_setup_photo, apply_photo, draft_unknown_device
-
-    mapper = Mapper(Store(args.home), Claude())
-    detected = _detect()
-    setup = mapper.setup(detected)
-    photo = analyse_setup_photo(mapper.claude, args.photo, detected)
-    unmatched = apply_photo(setup, photo)
-    mapper.store.save_positions({d.key: d.position for d in setup.devices})
+    setup, messages = Mapper(Store(args.home), Claude()).scan_photo(args.photo, _detect())
     for d in setup.devices:
         print(f"{d.detected.name}: {d.position}")
-    for seen in unmatched:
-        print(f"seen in photo but not on USB: {seen.manufacturer} {seen.model} ({seen.position})")
-    if photo.notes:
-        print(f"notes: {photo.notes}")
-    for d in setup.devices:
-        if d.definition is None and d.detected.usb_id:
-            definition = draft_unknown_device(mapper.claude, d.detected, args.photo)
-            path = mapper.catalog.save(definition)
-            print(f"drafted {len(definition.controls)} controls for {d.detected.name} -> {path}"
-                  f" (confirm with: msfs-mapper learn {d.detected.index})")
+    for message in messages:
+        print(message)
     return 0
+
+
+def cmd_import_mobiflight(args: argparse.Namespace) -> int:
+    from msfs_mapper.mobiflight import MobiFlightError
+
+    mapper = _mapper(args)
+    try:
+        imported = mapper.import_mobiflight(args.project, mapper.setup(_detect()))
+    except (MobiFlightError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for b in imported.bindings:
+        print(f"{b.module} / {b.input:<24} -> {b.function or 'not recognised'}")
+    print(f"{len(imported.handled_functions())} functions will be left to MobiFlight")
+    return 0
+
+
+def cmd_gui(args: argparse.Namespace) -> int:
+    from msfs_mapper.gui import run
+
+    return run(args.home)
 
 
 def cmd_learn(args: argparse.Namespace) -> int:
@@ -101,6 +107,9 @@ def print_mapping(setup: ControllerSetup, profile: AircraftProfile, mapping: Map
         print(f"  {functions[b.function].name:<32} <- {names.get(b.device, b.device)} / {b.control}{lock}")
     if mapping.unassigned_functions:
         print("  no free control for: " + ", ".join(mapping.unassigned_functions))
+    for b in mapping.external:
+        name = functions[b.function].name if b.function in functions else b.function
+        print(f"  {name:<32} <- MobiFlight: {b.module} / {b.input}")
     if profile.notes:
         print(f"  notes: {profile.notes}")
 
@@ -165,6 +174,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("scan-setup", help="locate devices from a photo of your setup")
     p.add_argument("photo", type=Path)
     p.set_defaults(fn=cmd_scan_setup)
+
+    p = sub.add_parser("import-mobiflight", help="respect inputs from a MobiFlight .mcc project")
+    p.add_argument("project", type=Path)
+    p.set_defaults(fn=cmd_import_mobiflight)
+
+    sub.add_parser("gui", help="open the mapper window").set_defaults(fn=cmd_gui)
 
     p = sub.add_parser("learn", help="confirm a device's button/axis indices interactively")
     p.add_argument("index", type=int, help="device index from `devices`")

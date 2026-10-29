@@ -57,6 +57,14 @@ class Claude:
                 betas=[FALLBACK_BETA],
                 fallbacks="default",
             )
+        except TypeError as exc:
+            # The SDK raises TypeError at request time when no credential source resolves.
+            if "authentication" not in str(exc).lower():
+                raise
+            raise AIError(
+                "no Claude credentials: set ANTHROPIC_API_KEY or run `ant auth login`, "
+                "or turn AI off (--no-ai)"
+            ) from exc
         except anthropic.APIConnectionError as exc:
             raise AIError(f"could not reach the Claude API: {exc}") from exc
         except anthropic.APIStatusError as exc:

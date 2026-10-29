@@ -17,8 +17,10 @@
 | `profiles/store.py` | JSON persistence, keyed by aircraft and hardware fingerprint |
 | `runtime/bridge.py` | Input event → SimAction routing; SimConnect and dry-run executors |
 | `runtime/learn.py` | Interactive index confirmation for device definitions |
+| `mobiflight.py` | Parse MobiFlight `.mcc` projects, recognise input functions, link `JS-` joystick inputs |
 | `pipeline.py` | Cache-or-generate orchestration, AI with offline fallback |
-| `cli.py` | `devices`, `scan-setup`, `learn`, `map`, `run` |
+| `cli.py` | `devices`, `scan-setup`, `import-mobiflight`, `learn`, `map`, `run`, `gui` |
+| `gui.py` | tkinter window; slow work on a worker thread, results marshalled back with `after` |
 
 ## Design decisions
 
@@ -32,6 +34,10 @@
   purpose is never repurposed by the heuristic.
 - **Cockpit order is data.** Template function lists put axis functions in left-to-right cockpit
   order and device definitions list levers left to right; the stable tie-break preserves it.
+- **MobiFlight stays in charge of its own panels.** An import produces `ExternalBinding`s; the
+  functions they operate are skipped by both mappers and listed in `MappingProfile.external`, and
+  joystick buttons MobiFlight reads are removed from the free slots. The router never sends
+  anything for external bindings.
 - **One mapping per (aircraft, hardware set).** Plugging in a different combination of devices
   produces a separate mapping instead of corrupting the existing one.
 - **Claude calls** use structured outputs (pydantic models) with adaptive thinking and

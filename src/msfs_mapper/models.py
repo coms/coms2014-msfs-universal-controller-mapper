@@ -200,9 +200,35 @@ class Binding(BaseModel):
     reason: str = ""
 
 
+class ExternalBinding(BaseModel):
+    """An input another tool (MobiFlight) already drives. We leave its function alone."""
+
+    source: Literal["mobiflight"] = "mobiflight"
+    module: str = Field(description="MobiFlight module or joystick name")
+    serial: str = ""
+    input: str = Field(description="Input name inside the module, e.g. 'Gear switch'")
+    input_type: str = ""
+    description: str = ""
+    commands: list[str] = Field(default_factory=list, description="Raw MobiFlight action code")
+    function: str | None = Field(default=None, description="Recognised SimFunction id")
+    # Set when the input is a button on a joystick we also read, so we don't bind it twice.
+    usb_device: str | None = None
+    button: int | None = None
+
+
+class MobiFlightImport(BaseModel):
+    project: str = Field(description="Path of the imported .mcc file")
+    bindings: list[ExternalBinding] = Field(default_factory=list)
+
+    def handled_functions(self) -> set[str]:
+        return {b.function for b in self.bindings if b.function}
+
+
 class MappingProfile(BaseModel):
     aircraft_key: str
     setup_fingerprint: str
     bindings: list[Binding] = Field(default_factory=list)
     unassigned_functions: list[str] = Field(default_factory=list)
+    # Functions left to MobiFlight; shown alongside our own bindings, never routed by us.
+    external: list[ExternalBinding] = Field(default_factory=list)
     source: Literal["heuristic", "ai", "user"] = "heuristic"

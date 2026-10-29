@@ -7,8 +7,14 @@ import json
 from pydantic import BaseModel, Field
 
 from msfs_mapper.ai import Claude
-from msfs_mapper.mapping.engine import functions_for, heuristic_map, is_compatible, slots
-from msfs_mapper.models import AircraftProfile, Binding, ControllerSetup, MappingProfile
+from msfs_mapper.mapping.engine import free_slots, functions_for, heuristic_map, is_compatible
+from msfs_mapper.models import (
+    AircraftProfile,
+    Binding,
+    ControllerSetup,
+    MappingProfile,
+    MobiFlightImport,
+)
 
 
 class ProposedBinding(BaseModel):
@@ -29,7 +35,9 @@ the control's physical shape and label match the function (a gear lever drives t
 two-position toggle drives lights, a rotary knob drives a selector); levers keep the real
 cockpit order left to right; controls the pilot reaches without looking (yoke buttons) get the
 time-critical functions (autopilot disconnect, trim). A control can drive one function only and
-only through a kind of action listed for that function. Return the full mapping."""
+only through a kind of action listed for that function. Functions listed as handled by
+MobiFlight are already on the pilot's MobiFlight panels: do not map them again. Return the
+full mapping."""
 
 
 def ai_map(
@@ -37,8 +45,9 @@ def ai_map(
     setup: ControllerSetup,
     profile: AircraftProfile,
     previous: MappingProfile | None = None,
+    external: MobiFlightImport | None = None,
 ) -> MappingProfile:
-    baseline = heuristic_map(setup, profile, previous)
+    baseline = heuristic_map(setup, profile, previous, external)
     functions = functions_for(profile)
     request = {
         "aircraft": profile.aircraft.model_dump(mode="json"),
@@ -56,13 +65,16 @@ def ai_map(
         ],
         "baseline_mapping": [b.model_dump(mode="json", include={"device", "control", "function"}) for b in baseline.bindings],
         "locked": [b.model_dump(mode="json") for b in baseline.bindings if b.locked],
+        "handled_by_mobiflight": [
+            {"function": b.function, "panel": b.module, "input": b.input} for b in baseline.external
+        ],
     }
     proposal = claude.structured(
         system=SYSTEM,
         content=[{"type": "text", "text": json.dumps(request, indent=1)}],
         output=ProposedMapping,
     )
-    return merge(setup, profile, baseline, proposal)
+    return merge(setup, profile, baseline, proposal, external)
 
 
 def merge(
@@ -70,13 +82,15 @@ def merge(
     profile: AircraftProfile,
     baseline: MappingProfile,
     proposal: ProposedMapping,
+    external: MobiFlightImport | None = None,
 ) -> MappingProfile:
     """Accept valid AI bindings, keep locked ones, and back-fill the rest from the baseline."""
     functions = functions_for(profile)
-    by_slot = {(s.device.key, s.control.id): s for s in slots(setup)}
+    by_slot = {(s.device.key, s.control.id): s for s in free_slots(setup, external)}
     bindings = [b for b in baseline.bindings if b.locked]
     used_controls = {(b.device, b.control) for b in bindings}
-    used_functions = {b.function for b in bindings}
+    handled = {b.function for b in baseline.external}
+    used_functions = {b.function for b in bindings} | handled
 
     def accept(binding: Binding) -> bool:
         slot = by_slot.get((binding.device, binding.control))
@@ -105,5 +119,6 @@ def merge(
         setup_fingerprint=baseline.setup_fingerprint,
         bindings=bindings,
         unassigned_functions=[f for f in profile.functions if f in functions and f not in used_functions],
+        external=baseline.external,
         source="ai" if accepted_ai else "heuristic",
     )
