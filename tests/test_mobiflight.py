@@ -117,7 +117,85 @@ def test_cli_import(tmp_path, monkeypatch, capsys):
     assert cli.main(["--home", str(tmp_path), "--no-ai", "import-mobiflight", str(PROJECT)]) == 0
     out = capsys.readouterr().out
     assert "Cockpit Mega / Gear switch" in out and "-> gear" in out
-    assert "4 functions will be left to MobiFlight" in out
+    assert "4 functions left to MobiFlight only" in out
+    assert "(switch/lever)" in out and "(button/knob" in out
     assert cli.main(["--home", str(tmp_path), "--no-ai", "map", "--title", "Airbus A320neo",
                      "--engine-type", "1", "--engines", "2", "--retractable"]) == 0
     assert "MobiFlight: Cockpit Mega / Gear switch" in capsys.readouterr().out
+
+
+C172 = AircraftInfo(title="Cessna Skyhawk", engine_type=0, engine_count=1)
+
+
+def test_switches_and_levers_are_told_apart_from_buttons_and_knobs():
+    kinds = {b.input: b.maintained for b in parse_project(PROJECT)}
+    assert kinds == {
+        "Gear switch": True,     # acts on press and release: a toggle switch
+        "HDG encoder": False,
+        "LDG LT": True,
+        "SEATBELT": False,       # press only: a push button
+        "Button 8": False,
+    }
+    analog = """<MobiflightConnector><inputs><config guid="a"><active>true</active>
+        <settings serial="P/ SN-1" name="Lever" type="AnalogInput"><analog>
+        <onChange type="MSFS2020CustomInputAction" command="@ (&gt;K:AXIS_MIXTURE_SET)"/></analog>
+        </settings></config></inputs></MobiflightConnector>"""
+    assert parse_project(analog)[0].maintained
+
+
+def test_imports_saved_before_this_option_count_as_switches():
+    from msfs_mapper.models import MobiFlightImport
+
+    old = MobiFlightImport.model_validate({"project": "x.mcc", "bindings": [
+        {"module": "P", "input": "Old", "function": "heading_bug"}]})
+    old.allow_shared = True
+    assert old.exclusive_functions() == {"heading_bug"}
+
+
+def test_sharing_off_by_default(setup):
+    imported = import_project(PROJECT, function_catalog(), setup)
+    assert not imported.allow_shared and not imported.shared_functions()
+
+
+def test_sharing_maps_momentary_functions_to_momentary_controls_only(setup):
+    imported = import_project(PROJECT, function_catalog(), setup).model_copy(update={"allow_shared": True})
+    assert imported.shared_functions() == {"heading_bug", "parking_brake"}
+    mapping = heuristic_map(setup, profile_from_template(C172), external=imported)
+    ours = {b.function: (b.device, b.control) for b in mapping.bindings}
+    assert ours["heading_bug"] == ("294B:1901", "ap_knob")  # knob doubled with the MobiFlight knob
+    assert "gear" not in ours and "landing_lights" not in ours  # switches never doubled
+    # No free *button* suits the parking brake; it must not fall back to a toggle switch,
+    # and it is not "without a control" since MobiFlight still has it.
+    assert "parking_brake" not in ours
+    assert "parking_brake" not in mapping.unassigned_functions
+    assert mapping.external_shared
+
+
+def test_ai_cannot_put_a_shared_function_on_a_switch(setup):
+    from msfs_mapper.mapping.ai_mapper import ProposedBinding, ProposedMapping, ai_map
+
+    imported = import_project(PROJECT, function_catalog(), setup).model_copy(update={"allow_shared": True})
+    claude, _ = fake_claude(ProposedMapping(bindings=[
+        ProposedBinding(device="294B:1901", control="toggle_7", function="parking_brake", reason="r"),
+        ProposedBinding(device="294B:1901", control="toggle_6", function="gear", reason="r"),
+    ]))
+    ours = {b.function: b.control for b in ai_map(claude, setup, profile_from_template(C172), external=imported).bindings}
+    assert "parking_brake" not in ours and "gear" not in ours
+
+
+def test_toggling_sharing_rebuilds_and_reimport_keeps_it(tmp_path):
+    mapper = Mapper(Store(tmp_path))
+    setup = mapper.setup([ALPHA, BRAVO, PEDALS])
+    profile = mapper.aircraft_profile(C172)
+    mapper.import_mobiflight(PROJECT, setup, profile)
+    assert not any(b.function == "heading_bug" for b in mapper.mapping(setup, profile).bindings)
+    mapper.set_mobiflight_sharing(True)
+    assert any(b.function == "heading_bug" for b in mapper.mapping(setup, profile).bindings)
+    assert mapper.import_mobiflight(PROJECT, setup, profile).allow_shared
+
+
+def test_cli_share_flag(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_detect", lambda: [ALPHA, BRAVO, PEDALS])
+    assert cli.main(["--home", str(tmp_path), "--no-ai", "import-mobiflight", str(PROJECT), "--share-buttons"]) == 0
+    assert "2 also mapped to your buttons and knobs" in capsys.readouterr().out
+    assert Store(tmp_path).load_mobiflight().allow_shared

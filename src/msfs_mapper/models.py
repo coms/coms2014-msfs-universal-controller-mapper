@@ -211,6 +211,9 @@ class ExternalBinding(BaseModel):
     description: str = ""
     commands: list[str] = Field(default_factory=list, description="Raw MobiFlight action code")
     function: str | None = Field(default=None, description="Recognised SimFunction id")
+    # Holds a position (toggle switch with an on-release action, analog lever). Such inputs can
+    # fight a second control for the same function. Unknown counts as maintained, to be safe.
+    maintained: bool = True
     # Set when the input is a button on a joystick we also read, so we don't bind it twice.
     usb_device: str | None = None
     button: int | None = None
@@ -219,9 +222,23 @@ class ExternalBinding(BaseModel):
 class MobiFlightImport(BaseModel):
     project: str = Field(description="Path of the imported .mcc file")
     bindings: list[ExternalBinding] = Field(default_factory=list)
+    # Also map functions of momentary MobiFlight inputs (buttons, knobs) to our own momentary
+    # controls. Functions of maintained inputs (switches, levers) are never doubled.
+    allow_shared: bool = False
 
     def handled_functions(self) -> set[str]:
         return {b.function for b in self.bindings if b.function}
+
+    def exclusive_functions(self) -> set[str]:
+        """Functions only MobiFlight may drive."""
+        return {
+            b.function for b in self.bindings
+            if b.function and (b.maintained or not self.allow_shared)
+        }
+
+    def shared_functions(self) -> set[str]:
+        """Functions we may also map, but only to buttons, knobs and hats."""
+        return self.handled_functions() - self.exclusive_functions()
 
 
 class KeyboardKnob(BaseModel):
@@ -243,6 +260,7 @@ class MappingProfile(BaseModel):
     setup_fingerprint: str
     bindings: list[Binding] = Field(default_factory=list)
     unassigned_functions: list[str] = Field(default_factory=list)
-    # Functions left to MobiFlight; shown alongside our own bindings, never routed by us.
+    # Functions MobiFlight handles; shown alongside our own bindings, never routed by us.
     external: list[ExternalBinding] = Field(default_factory=list)
+    external_shared: bool = Field(default=False, description="MobiFlightImport.allow_shared when built")
     source: Literal["heuristic", "ai", "user"] = "heuristic"

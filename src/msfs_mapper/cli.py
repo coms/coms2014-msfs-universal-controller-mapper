@@ -57,9 +57,14 @@ def cmd_import_mobiflight(args: argparse.Namespace) -> int:
     except (MobiFlightError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    if args.share is not None:
+        imported = mapper.set_mobiflight_sharing(args.share)
     for b in imported.bindings:
-        print(f"{b.module} / {b.input:<24} -> {b.function or 'not recognised'}")
-    print(f"{len(imported.handled_functions())} functions will be left to MobiFlight")
+        kind = "switch/lever" if b.maintained else "button/knob"
+        print(f"{b.module} / {b.input:<24} ({kind:<12}) -> {b.function or 'not recognised'}")
+    exclusive, shared = imported.exclusive_functions(), imported.shared_functions()
+    print(f"{len(exclusive)} functions left to MobiFlight only", end="")
+    print(f", {len(shared)} also mapped to your buttons and knobs" if shared else "")
     return 0
 
 
@@ -211,7 +216,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("import-mobiflight", help="respect inputs from a MobiFlight .mcc project")
     p.add_argument("project", type=Path)
-    p.set_defaults(fn=cmd_import_mobiflight)
+    share = p.add_mutually_exclusive_group()
+    share.add_argument("--share-buttons", dest="share", action="store_const", const=True,
+                       help="also map MobiFlight buttons/knobs' functions to your other buttons and knobs")
+    share.add_argument("--no-share-buttons", dest="share", action="store_const", const=False,
+                       help="leave every MobiFlight function to MobiFlight only (default)")
+    p.set_defaults(fn=cmd_import_mobiflight, share=None)
 
     sub.add_parser("gui", help="open the mapper window").set_defaults(fn=cmd_gui)
 

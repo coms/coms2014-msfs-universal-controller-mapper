@@ -37,7 +37,9 @@
   order and device definitions list levers left to right; the stable tie-break preserves it.
 - **MobiFlight stays in charge of its own panels.** An import produces `ExternalBinding`s; the
   functions they operate are skipped by both mappers and listed in `MappingProfile.external`, and
-  joystick buttons MobiFlight reads are removed from the free slots. The router never sends
+  joystick buttons MobiFlight reads are removed from the free slots. With `allow_shared`, functions
+  of momentary inputs (`maintained=False`) are mapped again, restricted to `MOMENTARY` control
+  kinds; maintained inputs stay exclusive. The router never sends
   anything for external bindings.
 - **The keyboard knob is just another device.** It enters the setup as a virtual device
   (index -1) whose controls carry the role the user picked, so the normal mapper assigns it. It is

@@ -101,8 +101,15 @@ Importing your MobiFlight Connector project (`.mcc`) tells the mapper what they 
 
 - each input's commands (`(>K:GEAR_DOWN)`, event ids, presets) are matched to the function
   catalog; with AI on, Claude identifies the rest (add-on L:vars, H:events);
-- functions a MobiFlight input already operates are **left to MobiFlight**: they are not mapped a
-  second time onto your Bravo or Alpha;
+- functions a MobiFlight input already operates are **left to MobiFlight** by default: they are
+  not mapped a second time onto your Bravo or Alpha. Two controls for one function can disagree
+  (panel gear switch DOWN, Bravo gear lever UP), and skipping them frees controls for functions
+  that would otherwise have none;
+- optionally (*Also map MobiFlight buttons and knobs…* in the window, `--share-buttons` on the
+  command line) functions of MobiFlight **buttons and knobs** may also go on one of your buttons
+  or knobs, e.g. a heading knob on both the panel and the Bravo. Inputs that hold a position
+  (toggle switches acting on press *and* release, analog levers) are never doubled, and a shared
+  function never lands on a switch or lever of yours;
 - joysticks that MobiFlight reads directly (serial `JS-…`, e.g. a Bravo button you configured in
   MobiFlight) have those buttons reserved, so the same button never fires two actions.
 

@@ -135,9 +135,15 @@ class App:
         tabs.add(mf_tab, text="MobiFlight inputs")
         self.mf_tree = self._tree(
             mf_tab, ("module", "input", "type", "description", "function", "command"),
-            ("Panel", "Input", "Type", "Description", "Function", "Command"),
+            ("Panel", "Input", "Kind", "Description", "Function", "Command"),
         )
         self.mf_tree.bind("<Double-1>", lambda _e: self.edit_mobiflight_function())
+        self.share_mf = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            mf_tab, variable=self.share_mf, command=lambda: self.set_mobiflight_sharing(self.share_mf.get()),
+            text="Also map MobiFlight buttons and knobs to my other buttons and knobs "
+                 "(switches and levers are never doubled)",
+        ).pack(anchor="w", pady=(4, 0))
         ttk.Label(mf_tab, text="Double-click an input to set which function it operates.").pack(
             anchor="w", pady=4)
         self.tabs = tabs
@@ -384,11 +390,22 @@ class App:
     def show_mobiflight(self) -> None:
         self.mf_tree.delete(*self.mf_tree.get_children())
         imported = self.store.load_mobiflight()
+        self.share_mf.set(bool(imported and imported.allow_shared))
         names = {fid: f.name for fid, f in self._functions().items()}
         for i, b in enumerate(imported.bindings if imported else []):
             function = names.get(b.function, b.function) if b.function else NOT_RECOGNISED
+            kind = f"{'switch / lever' if b.maintained else 'button / knob'} ({b.input_type})"
             self.mf_tree.insert("", "end", iid=str(i), values=(
-                b.module, b.input, b.input_type, b.description, function, "; ".join(b.commands)))
+                b.module, b.input, kind, b.description, function, "; ".join(b.commands)))
+
+    def set_mobiflight_sharing(self, allow: bool) -> None:
+        if self.mapper().set_mobiflight_sharing(allow) is None:
+            self.share_mf.set(False)
+            self.status.set("Import a MobiFlight project first")
+            return
+        self.status.set("MobiFlight buttons and knobs " + ("may also be mapped" if allow else "stay MobiFlight-only"))
+        if self.profile:
+            self.build_mapping(False)
 
     def edit_mobiflight_function(self) -> None:
         imported = self.store.load_mobiflight()
@@ -495,12 +512,20 @@ class App:
         def name(fid: str) -> str:
             return functions[fid].name if fid in functions else fid
 
-        for i, b in enumerate(self.mapping.bindings):
-            source = "locked" if b.locked else {"ai": "AI", "heuristic": "auto"}.get(self.mapping.source, "user")
-            tree.insert("", "end", iid=f"b{i}", values=(
-                name(b.function), names.get(b.device, b.device), b.control, source))
-        for b in self.mapping.external:
-            tree.insert("", "end", values=(name(b.function), b.module, b.input, "MobiFlight"))
+        auto = {"ai": "AI", "heuristic": "auto"}.get(self.mapping.source, "user")
+        rows = [
+            (b.function, f"b{i}", (name(b.function), names.get(b.device, b.device), b.control,
+                                   "locked" if b.locked else auto))
+            for i, b in enumerate(self.mapping.bindings)
+        ] + [
+            (b.function, None, (name(b.function), b.module, b.input, "MobiFlight"))
+            for b in self.mapping.external
+        ]
+        # Checklist priority order; a function shared with MobiFlight shows both controls together.
+        order = {fid: i for i, fid in enumerate(self.profile.functions)}
+        rows.sort(key=lambda row: order.get(row[0], len(order)))
+        for _, iid, values in rows:
+            tree.insert("", "end", iid=iid, values=values)
         for fid in self.mapping.unassigned_functions:
             tree.insert("", "end", values=(name(fid), "— no free control —", "", ""))
 

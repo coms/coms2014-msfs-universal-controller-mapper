@@ -7,7 +7,7 @@ import json
 from pydantic import BaseModel, Field
 
 from msfs_mapper.ai import Claude
-from msfs_mapper.mapping.engine import free_slots, functions_for, heuristic_map, is_compatible
+from msfs_mapper.mapping.engine import MOMENTARY, free_slots, functions_for, heuristic_map, is_compatible
 from msfs_mapper.models import (
     AircraftProfile,
     Binding,
@@ -36,8 +36,8 @@ two-position toggle drives lights, a rotary knob drives a selector); levers keep
 cockpit order left to right; controls the pilot reaches without looking (yoke buttons) get the
 time-critical functions (autopilot disconnect, trim). A control can drive one function only and
 only through a kind of action listed for that function. Functions listed as handled by
-MobiFlight are already on the pilot's MobiFlight panels: do not map them again. Return the
-full mapping."""
+MobiFlight are already on the pilot's MobiFlight panels: do not map them again, except those
+listed as shareable, which may also go on a button, encoder or hat. Return the full mapping."""
 
 
 def ai_map(
@@ -68,6 +68,7 @@ def ai_map(
         "handled_by_mobiflight": [
             {"function": b.function, "panel": b.module, "input": b.input} for b in baseline.external
         ],
+        "shareable_with_mobiflight": sorted(external.shared_functions()) if external else [],
     }
     proposal = claude.structured(
         system=SYSTEM,
@@ -89,8 +90,9 @@ def merge(
     by_slot = {(s.device.key, s.control.id): s for s in free_slots(setup, external)}
     bindings = [b for b in baseline.bindings if b.locked]
     used_controls = {(b.device, b.control) for b in bindings}
-    handled = {b.function for b in baseline.external}
-    used_functions = {b.function for b in bindings} | handled
+    exclusive = external.exclusive_functions() if external else set()
+    shared = external.shared_functions() if external else set()
+    used_functions = {b.function for b in bindings} | exclusive
 
     def accept(binding: Binding) -> bool:
         slot = by_slot.get((binding.device, binding.control))
@@ -100,6 +102,7 @@ def merge(
             or (binding.device, binding.control) in used_controls
             or binding.function in used_functions
             or not is_compatible(function, slot.control)
+            or (binding.function in shared and slot.control.kind not in MOMENTARY)
         ):
             return False
         bindings.append(binding)
@@ -118,7 +121,10 @@ def merge(
         aircraft_key=baseline.aircraft_key,
         setup_fingerprint=baseline.setup_fingerprint,
         bindings=bindings,
-        unassigned_functions=[f for f in profile.functions if f in functions and f not in used_functions],
+        unassigned_functions=[
+            f for f in profile.functions if f in functions and f not in used_functions | shared
+        ],
         external=baseline.external,
+        external_shared=baseline.external_shared,
         source="ai" if accepted_ai else "heuristic",
     )

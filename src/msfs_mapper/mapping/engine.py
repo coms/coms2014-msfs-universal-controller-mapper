@@ -12,6 +12,7 @@ from msfs_mapper.data import function_catalog
 from msfs_mapper.models import (
     AircraftProfile,
     Binding,
+    ControlKind,
     ControllerSetup,
     MappingProfile,
     MobiFlightImport,
@@ -22,6 +23,8 @@ from msfs_mapper.models import (
 
 # Roles that only say what *kind* of thing a control is, not what it is for.
 GENERIC_ROLES = {"lever", "switch", "encoder", "lights", "autopilot", "trim", "yoke.button"}
+# Controls that hold no position, so a second one for the same function can't disagree with it.
+MOMENTARY = {ControlKind.BUTTON, ControlKind.ENCODER, ControlKind.HAT}
 
 
 @dataclass(frozen=True)
@@ -95,8 +98,10 @@ def heuristic_map(
     functions = functions_for(profile)
     available = free_slots(setup, external)
     bindings: list[Binding] = []
-    # Functions MobiFlight already drives stay with MobiFlight.
-    done: set[str] = external.handled_functions() if external else set()
+    # Functions MobiFlight already drives stay with MobiFlight, except momentary ones the user
+    # allowed us to double up on our own momentary controls.
+    done: set[str] = external.exclusive_functions() if external else set()
+    shared = external.shared_functions() if external else set()
 
     # User-pinned bindings survive re-mapping as long as the hardware is still there.
     for binding in previous.bindings if previous else []:
@@ -111,9 +116,11 @@ def heuristic_map(
         if function_id in done or function_id not in functions:
             continue
         function = functions[function_id]
-        best = max(available, key=lambda s: (score(function, s.control), -s.order), default=None)
+        pool = [s for s in available if s.control.kind in MOMENTARY] if function_id in shared else available
+        best = max(pool, key=lambda s: (score(function, s.control), -s.order), default=None)
         if best is None or score(function, best.control) == 0:
-            unassigned.append(function_id)
+            if function_id not in shared:  # shared ones still have their MobiFlight control
+                unassigned.append(function_id)
             continue
         available.remove(best)
         done.add(function_id)
@@ -132,6 +139,7 @@ def heuristic_map(
         bindings=bindings,
         unassigned_functions=unassigned,
         external=[b for b in external.bindings if b.function] if external else [],
+        external_shared=external.allow_shared if external else False,
         source="heuristic",
     )
 

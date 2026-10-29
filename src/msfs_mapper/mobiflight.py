@@ -65,6 +65,19 @@ def _actions(settings: ET.Element) -> list[str]:
     return commands
 
 
+def _maintained(settings: ET.Element, input_type: str) -> bool:
+    """Analog inputs and buttons that also act on release are switches/levers, not buttons."""
+    kind = input_type.lower()
+    if "analog" in kind:
+        return True
+    if "encoder" in kind:
+        return False
+    return any(
+        _local(e.tag).lower() == "onrelease" and _actions(e)
+        for e in settings.iter()
+    )
+
+
 def parse_project(source: Path | str) -> list[ExternalBinding]:
     """Parse a .mcc file (path) or its XML text into one ExternalBinding per active input."""
     try:
@@ -83,12 +96,14 @@ def parse_project(source: Path | str) -> list[ExternalBinding]:
         if settings is None:
             continue
         serial = _field(settings, "serial")
+        input_type = _field(settings, "type")
         bindings.append(
             ExternalBinding(
                 module=_module_name(serial),
                 serial=serial,
                 input=_field(settings, "name"),
-                input_type=_field(settings, "type"),
+                input_type=input_type,
+                maintained=_maintained(settings, input_type),
                 description=_field(config, "description"),
                 commands=_actions(settings),
             )

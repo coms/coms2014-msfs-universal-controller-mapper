@@ -57,7 +57,7 @@ def test_import_then_map_shows_mobiflight_rows(app):
     app.wait_idle()
     assert not app.alerts
     mf = rows(app.mf_tree)
-    assert ("Cockpit Mega", "Gear switch", "Button", "Gear lever", "Landing gear",
+    assert ("Cockpit Mega", "Gear switch", "switch / lever (Button)", "Gear lever", "Landing gear",
             "(>K:GEAR_DOWN); (>K:GEAR_UP)") in mf
     assert any(r[1] == "SEATBELT" and r[4] == NOT_RECOGNISED for r in mf)
     assert [r[:2] for r in rows(app.devices)[3:]] == [("Cockpit Mega", "MobiFlight"), ("Overhead Nano", "MobiFlight")]
@@ -107,3 +107,21 @@ def test_keyboard_knob_settings(app):
 
     app.open_knob_dialog()  # builds without errors
     app.root.update()
+
+
+def test_sharing_checkbox(app):
+    app.title.set("Cessna 172")
+    app.import_mobiflight(PROJECT)
+    app.wait_idle()
+    app.build_mapping(False)
+    app.wait_idle()
+    heading = [r for r in rows(app.mapping_tree) if r[0] == "Heading bug"]
+    assert heading == [("Heading bug", "Cockpit Mega", "HDG encoder", "MobiFlight")]
+    assert app.mf_tree.item("1", "values")[2] == "button / knob (Encoder)"
+
+    app.share_mf.set(True)
+    app.set_mobiflight_sharing(True)
+    app.wait_idle()
+    heading = [r for r in rows(app.mapping_tree) if r[0] == "Heading bug"]
+    assert heading == [("Heading bug", "Bravo Throttle Quadrant", "ap_knob", "auto"),
+                       ("Heading bug", "Cockpit Mega", "HDG encoder", "MobiFlight")]

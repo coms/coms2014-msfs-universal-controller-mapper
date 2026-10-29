@@ -78,12 +78,23 @@ class Mapper:
         """Parse a MobiFlight project, recognise its inputs (AI for the leftovers) and save it."""
         functions = functions_for(profile) if profile else function_catalog()
         imported = import_project(path, functions, setup)
+        previous = self.store.load_mobiflight()
+        if previous:  # re-importing keeps the user's sharing choice
+            imported = imported.model_copy(update={"allow_shared": previous.allow_shared})
         if self.claude:
             try:
                 imported = ai_identify(self.claude, imported, functions)
             except AIError as exc:
                 log.warning("AI identification of MobiFlight inputs failed: %s", exc)
         self.store.save_mobiflight(imported)
+        return imported
+
+    def set_mobiflight_sharing(self, allow: bool) -> MobiFlightImport | None:
+        """Let MobiFlight buttons and knobs also be mapped to our own buttons and knobs."""
+        imported = self.store.load_mobiflight()
+        if imported is not None:
+            imported = imported.model_copy(update={"allow_shared": allow})
+            self.store.save_mobiflight(imported)
         return imported
 
     def aircraft_profile(self, aircraft: AircraftInfo, refresh: bool = False) -> AircraftProfile:
@@ -106,7 +117,12 @@ class Mapper:
         previous = self.store.load_mapping(profile.aircraft.key, setup.fingerprint())
         external = self.store.load_mobiflight()
         handled = external.handled_functions() if external else set()
-        if previous and not refresh and {b.function for b in previous.external} == handled:
+        sharing = external.allow_shared if external else False
+        if (
+            previous and not refresh
+            and {b.function for b in previous.external} == handled
+            and previous.external_shared == sharing
+        ):
             return previous
         mapping = None
         if self.claude:
