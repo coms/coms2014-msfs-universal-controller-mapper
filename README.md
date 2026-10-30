@@ -73,9 +73,10 @@ argument to `run_msfs.bat` to send events to the simulator; other arguments are 
 
 - **Hardware**: USB controllers with their catalog match, position and how many controls are
   verified, plus every imported MobiFlight panel.
-- **Import MobiFlight project…**: pick your `.mcc` file. The *MobiFlight inputs* tab lists every
-  input, what it does, and which function it was recognised as. Double-click an input to set or
-  correct its function by hand.
+- **MobiFlight** tab: the *MobiFlight Connector* panel at the top holds all import and export
+  settings: *Import project…* / *Clear*, sharing buttons and knobs, exporting the mapping, and the
+  export folder (*Change…*, *Open*). Below it, every imported input with what it does and which
+  function it was recognised as; double-click an input to set or correct its function by hand.
 - **Aircraft**: type a title or *Read from sim*, then *Build mapping* (*Rebuild* ignores the saved
   mapping but keeps locked bindings).
 - **Mapping** tab: each function with the control assigned to it, functions MobiFlight handles,
@@ -139,7 +140,7 @@ controls; `msfs-mapper run` then leaves them alone, so nothing is sent twice.
 - Not exported (kept by `msfs-mapper run`): the keyboard knob and hats.
 - Re-exporting replaces the previous `[msfs-mapper]` configs; importing the exported file ignores
   them, so the two never feed back into each other.
-- Turn it off with the checkbox on the *MobiFlight inputs* tab or `msfs-mapper mobiflight-export
+- Turn it off with the checkbox on the *MobiFlight* tab or `msfs-mapper mobiflight-export
   --off`; `--folder` changes where projects are written.
 
 ### Study-level add-ons (Fenix, PMDG, iniBuilds…)

@@ -187,3 +187,56 @@ def test_helicopter_checkbox_uses_helicopter_template(app):
     app.wait_idle()
     assert app.profile.template == "helicopter"
     assert "Collective" in {r[0] for r in rows(app.mapping_tree)}
+
+
+def test_settings_stay_visible_in_a_small_window(app):
+    app.root.geometry("900x560")
+    app.tabs.select(1)
+    for _ in range(5):
+        app.root.update()
+    mf_tab = app.tabs.nametowidget(app.tabs.tabs()[1])
+    panel = next(w for w in mf_tab.winfo_children() if isinstance(w, tk.ttk.Labelframe))
+    checkboxes = [w for w in panel.winfo_children() if isinstance(w, tk.ttk.Checkbutton)]
+    assert len(checkboxes) == 2 and all(c.winfo_ismapped() for c in checkboxes)
+    bottom = panel.winfo_rooty() + panel.winfo_height()
+    assert bottom <= app.root.winfo_rooty() + app.root.winfo_height()
+    status_bar = next(w for w in app.root.winfo_children()
+                      if isinstance(w, tk.ttk.Label) and str(w.cget("textvariable")) == str(app.status))
+    assert status_bar.winfo_ismapped()
+
+
+def test_export_folder_setting(app, tmp_path):
+    app.title.set("Airbus A320neo")
+    app.import_mobiflight(PROJECT)
+    app.wait_idle()
+    assert app.project_info.get() == f"Project: {PROJECT}"
+    app.build_mapping(False)
+    app.wait_idle()
+    custom = tmp_path / "my projects"
+    app.set_export_folder(custom)
+    app.wait_idle()
+    assert app.export_folder.get() == str(custom)
+    assert app.last_export.path.parent == custom and app.last_export.path.exists()
+    app.set_export_folder(None)
+    app.wait_idle()
+    assert app.export_folder.get() == str(app.store.home / "mobiflight")
+
+
+def test_earlier_import_is_shown_at_startup(tmp_path):
+    from msfs_mapper.data import function_catalog
+    from msfs_mapper.mobiflight import import_project
+
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("no display")
+    store = Store(tmp_path)
+    store.save_mobiflight(import_project(PROJECT, function_catalog()))
+    app = App(root, store, detect=lambda: [])
+    try:
+        assert len(app.mf_tree.get_children()) == 5
+        assert app.project_info.get().startswith("Project:")
+    finally:
+        root.destroy()
+        del app, root
+        gc.collect()
