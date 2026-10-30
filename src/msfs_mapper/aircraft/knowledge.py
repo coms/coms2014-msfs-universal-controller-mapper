@@ -21,7 +21,8 @@ class AircraftAdvice(BaseModel):
     checklists: list[Checklist] = Field(description="Before takeoff, takeoff, approach and landing flows")
     custom_functions: list[SimFunction] = Field(
         description="Only for controls this aircraft does not drive via standard SimConnect events "
-        "(e.g. add-on L:var or H:event controls as calculator code). Empty if none are needed."
+        "(e.g. add-on L:var or H:event controls as calculator code). In axis calculator code, @ is "
+        "the axis value from -16383 to 16383. Empty if none are needed."
     )
     notes: str = Field(description="Mapping caveats a pilot should know, e.g. 'Fenix A320 needs ...'")
 

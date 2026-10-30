@@ -112,7 +112,8 @@ class SimAction(BaseModel):
 
     type: Literal["event", "calculator"] = "event"
     # For type=event: a SimConnect key event name, e.g. "GEAR_UP".
-    # For type=calculator: RPN calculator code, e.g. "(>H:A320_Neo_MFD_BTN_CSTR_1)".
+    # For type=calculator: RPN calculator code, e.g. "(>H:A320_Neo_MFD_BTN_CSTR_1)"; on an axis,
+    # "@" stands for the axis value -16383..16383. Runs through the MobiFlight WASM module.
     value: str
 
 

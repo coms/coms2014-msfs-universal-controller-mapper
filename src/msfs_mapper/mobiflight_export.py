@@ -1,8 +1,8 @@
 """Write the automatic mapping into a MobiFlight Connector project, so MobiFlight runs it.
 
-MobiFlight reads USB game controllers as "joysticks" next to its own boards, and it can send
-calculator code our bridge cannot. Exporting therefore hands every exportable binding to
-MobiFlight: `msfs-mapper run` then skips those bindings so nothing is sent twice.
+MobiFlight reads USB game controllers as "joysticks" next to its own boards. Exporting hands
+every exportable binding to MobiFlight: `msfs-mapper run` then skips those bindings so nothing
+is sent twice.
 
 MobiFlight addresses a joystick by a serial like "Bravo Throttle Quadrant / JS-{instance id}".
 That id is not derivable from what SDL reports, so it is learned from the imported project:
@@ -33,6 +33,7 @@ from msfs_mapper.models import (
     SimAction,
     SimFunction,
 )
+from msfs_mapper.runtime.bridge import AXIS_PLACEHOLDER
 
 MSDATA = "urn:schemas-microsoft-com:xml-msdata"
 INSTANCE_TYPE = "MobiFlight.InputConfigItem, MFConnector"
@@ -83,7 +84,7 @@ def split(
         if (
             device is None or control is None or function is None
             or device.detected.index < 0  # virtual devices (keyboard knob): MobiFlight can't see them
-            or not _inputs(control, function, binding.invert)  # hats, calculator-code axes
+            or not _inputs(control, function, binding.invert)  # hats
         ):
             result.kept.append(binding)
         elif device.detected.name.lower() in serials:
@@ -177,11 +178,15 @@ def _inputs(
     a = function.actions
     match control.kind:
         case ControlKind.AXIS:
-            if a.axis is None or a.axis.type != "event":
+            if a.axis is None:
                 return []
             scale = AXIS_SCALE_INVERTED if invert else AXIS_SCALE
+            if a.axis.type == "event":
+                command = f"{scale} (>K:{a.axis.value})"
+            else:  # our "@" is the scaled -16383..16383 value; MobiFlight's is the raw 0..65535
+                command = a.axis.value.replace(AXIS_PLACEHOLDER, scale)
             name = AXIS_NAMES[control.axis] if control.axis < len(AXIS_NAMES) else str(control.axis)
-            return [(f"Axis {name}", "AnalogInput", [("onChange", f"{scale} (>K:{a.axis.value})")])]
+            return [(f"Axis {name}", "AnalogInput", [("onChange", command)])]
         case ControlKind.BUTTON:
             return [(_button(control.button), "Button", [("onPress", _command(a.press))])]
         case ControlKind.ENCODER:

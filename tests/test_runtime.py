@@ -140,3 +140,47 @@ def test_mobiflight_serial_source_rejects_mismatched_firmware_counts():
 
     with pytest.raises(ValueError, match="firmware mismatch"):
         list(source.events(timeout=0.1))
+
+
+def test_calculator_code_axis_gets_value_and_runs_through_mobiflight_wasm():
+    import ctypes
+
+    from msfs_mapper.models import SimAction
+    from msfs_mapper.runtime.bridge import MobiFlightWasm, SimConnectExecutor
+
+    class FakeDll:
+        def __init__(self):
+            self.calls = []
+            for name in ("MapClientDataNameToID", "CreateClientData", "AddToClientDataDefinition"):
+                setattr(self, name, self._record(name))
+
+            def set_client_data(handle, area, definition, flags, reserved, size, buffer):
+                self.calls.append(("SetClientData", (area, size, ctypes.string_at(buffer, size))))
+            self.SetClientData = set_client_data
+
+        def _record(self, name):
+            def call(*args):
+                self.calls.append((name, args[1:]))
+            return call
+
+    class FakeSim:
+        hSimConnect = 1
+        dll = FakeDll()
+
+    sim = FakeSim()
+    executor = SimConnectExecutor.__new__(SimConnectExecutor)  # skip AircraftEvents lookup
+    executor._sim, executor._wasm, executor._cache = sim, None, {}
+    executor.send(SimAction(type="calculator", value="@ (>L:A32NX_THROTTLE)"), -8192)
+
+    assert sim.dll.calls[0] == ("MapClientDataNameToID", (b"MobiFlight.Command", MobiFlightWasm.AREA_ID))
+    name, (area, size, data) = sim.dll.calls[-1]
+    assert (name, area, size) == ("SetClientData", MobiFlightWasm.AREA_ID, MobiFlightWasm.MESSAGE_SIZE)
+    assert data.rstrip(b"\0") == b"MF.SimVars.Set.-8192 (>L:A32NX_THROTTLE)"
+
+
+def test_dry_run_shows_calculator_code_with_axis_value():
+    from msfs_mapper.models import SimAction
+
+    executor = LogExecutor()
+    executor.send(SimAction(type="calculator", value="@ (>L:X)"), 100)
+    assert executor.sent == [("100 (>L:X)", 100)]

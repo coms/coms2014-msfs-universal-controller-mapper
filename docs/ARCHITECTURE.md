@@ -61,6 +61,7 @@
   catalog and override the built-in one.
 - **New function:** add an entry to `data/functions.yaml` with its roles, preferred control kinds
   and the SimConnect events for each action (`axis`, `press`, `on`/`off`, `inc`/`dec`). Use
-  `{calc: "..."}` for calculator code.
+  `{calc: "..."}` for calculator code (run through the MobiFlight WASM module; `@` is the axis
+  value on an axis).
 - **New aircraft class:** add `data/checklists/<id>.yaml` and teach `choose_template` when to
   pick it.

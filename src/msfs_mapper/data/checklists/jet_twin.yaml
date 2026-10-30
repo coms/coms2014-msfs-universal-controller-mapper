@@ -1,6 +1,7 @@
 id: jet_twin
-description: Twin-engine jet airliner or bizjet (A320, 737, CJ4, Longitude)
-functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, speedbrake,
+description: Jet airliner or bizjet, two to four engines (A320, 737, 747, A380, CJ4, Longitude)
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, throttle_3,
+            throttle_4, speedbrake,
             flaps, gear, reversers, spoilers_arm, ap_disconnect, autothrottle_arm,
             elevator_trim, parking_brake, landing_lights, taxi_lights, strobe_lights,
             beacon, nav_lights, ap_master, ap_heading, ap_nav, ap_approach, ap_altitude,

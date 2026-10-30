@@ -1,6 +1,7 @@
 id: turboprop
 description: Turboprop single or twin (TBM 930, King Air 350, PC-12, ATR 72)
-functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, throttle,
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle_1, throttle_2, throttle_3,
+            throttle_4, throttle,
             propeller, condition_lever, elevator_trim, flaps, gear, reversers, parking_brake,
             landing_lights, taxi_lights, beacon, strobe_lights, nav_lights, battery,
             alternator, avionics, fuel_pump, pitot_heat, ap_master, ap_heading, ap_nav,

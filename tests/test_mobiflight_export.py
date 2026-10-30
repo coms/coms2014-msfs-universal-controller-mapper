@@ -6,7 +6,7 @@ from msfs_mapper.aircraft.templates import profile_from_template
 from msfs_mapper.data import function_catalog
 from msfs_mapper.mapping.engine import functions_for, heuristic_map
 from msfs_mapper.mobiflight import GENERATED_TAG, import_project, parse_project
-from msfs_mapper.mobiflight_export import export_project, split
+from msfs_mapper.mobiflight_export import _inputs, export_project, split
 from msfs_mapper.models import (
     AircraftInfo,
     ExternalBinding,
@@ -97,7 +97,7 @@ def test_nothing_written_when_mobiflight_knows_no_controller(tmp_path, setup):
     assert len(result.kept) == len(mapping.bindings)
 
 
-def test_calculator_axis_and_virtual_devices_stay_with_the_bridge(setup):
+def test_calculator_axis_exported_virtual_devices_stay_with_the_bridge(setup):
     from msfs_mapper.models import Binding, MappingProfile
     from msfs_mapper.runtime.keyboard import knob_device
 
@@ -112,8 +112,12 @@ def test_calculator_axis_and_virtual_devices_stay_with_the_bridge(setup):
         Binding(device="294B:1901", control="lever_2", function="throttle_2"),
     ])
     result = split(setup, mapping, functions, imported)
-    assert [b.control for b in result.exported] == ["lever_2"]
-    assert [b.control for b in result.kept] == ["lever_1", "knob"]
+    assert [b.control for b in result.exported] == ["lever_1", "lever_2"]
+    assert [b.control for b in result.kept] == ["knob"]
+    bravo = next(d for d in setup.devices if d.key == "294B:1901")
+    lever = next(c for c in bravo.controls if c.id == "lever_1")
+    [(_, _, [(_, command)])] = _inputs(lever, functions["fbw_throttle"], invert=False)
+    assert command == "@ 32768 - 2 / (>L:A32NX_THROTTLE)"
 
 
 def test_pipeline_exports_by_default_and_run_skips_exported(tmp_path):

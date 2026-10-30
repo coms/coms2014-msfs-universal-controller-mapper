@@ -31,7 +31,7 @@ USB input ──► Router ──► SimConnect key events ◄──────
    devices, where they sit relative to the seat, and any labels you stuck on them. Devices that are
    not in the catalog get a drafted control layout that you confirm with `learn`.
 3. **Know the aircraft.** When an aircraft loads, its title, category, engine type/count and gear type
-   are read over SimConnect. A checklist template (helicopter, single piston, turboprop, twin jet) gives the
+   are read over SimConnect. A checklist template (helicopter, piston, turboprop, jet; up to four engines) gives the
    function list in priority order; Claude then tailors it to the specific aircraft and add-on
    (e.g. which functions a Fenix A320 drives differently).
 4. **Map.** A deterministic scorer matches functions to controls by role, control kind and
@@ -131,18 +131,25 @@ Each time a mapping is built, it is also written into a MobiFlight project:
 `~/.msfs-mapper/mobiflight/<your project> - <aircraft>.mcc`. That file is a copy of your imported
 project (boards, outputs, your inputs untouched) plus one input config per mapped control, tagged
 `[msfs-mapper]` in the description. Load it in MobiFlight Connector and MobiFlight runs those
-controls; `msfs-mapper run` then leaves them alone, so nothing is sent twice. MobiFlight can also
-send add-on aircraft L:vars / H:events, which the built-in bridge can't yet.
+controls; `msfs-mapper run` then leaves them alone, so nothing is sent twice.
 
 - Only controllers MobiFlight already knows are exported. MobiFlight identifies a joystick by an id
   that can't be read from USB, so it is learned from your project: configure any one input of a
   controller in MobiFlight once, save, re-import, and that controller is exported from then on.
-- Not exported (kept by `msfs-mapper run`): the keyboard knob, hats, and axes that need
-  calculator code.
+- Not exported (kept by `msfs-mapper run`): the keyboard knob and hats.
 - Re-exporting replaces the previous `[msfs-mapper]` configs; importing the exported file ignores
   them, so the two never feed back into each other.
 - Turn it off with the checkbox on the *MobiFlight inputs* tab or `msfs-mapper mobiflight-export
   --off`; `--folder` changes where projects are written.
+
+### Study-level add-ons (Fenix, PMDG, iniBuilds…)
+
+Many add-on airliners ignore some standard SimConnect events and need their own L:vars or
+H:events instead. With AI on, Claude adds those as calculator code for the loaded aircraft
+(in axis code, `@` is the axis value from -16383 to 16383). `msfs-mapper run` sends calculator
+code through the **MobiFlight WASM module**, which MobiFlight Connector installs into the MSFS
+Community folder; install MobiFlight once even if you don't otherwise use it. Without the module
+these controls do nothing, and standard controls keep working.
 
 ### MobiFlight Mega (custom firmware)
 
@@ -195,13 +202,13 @@ This is an early scaffold. What works and what doesn't yet:
 | MobiFlight export | Written and tested against the format as known; joystick input names (`Button N`, `Axis X`...) and the axis value range are **unverified** until opened in MobiFlight |
 | Keyboard volume knob | Key decoding, mapping and window tested; the Windows keyboard hook itself is **not yet run on Windows** |
 | Function catalog (≈40 functions, standard SimConnect key events) | Implemented |
-| Checklist templates: helicopter, single piston, turboprop, twin jet | Implemented; glider missing |
+| Checklist templates: helicopter, piston, turboprop, jet (split throttles for 2-4 engines) | Implemented; glider missing |
 | Device catalog: Alpha, Bravo, Saitek pedals, T.16000M | **Button indices from community references, unverified** — run `learn` |
 | Logitech/Saitek Pro Flight Throttle Quadrant | 3 axes + 6 buttons cataloged; indices unverified — run `learn` |
 | VKB Gladiator NXT/EVO | Stick, twist, throttle, mini-stick, POV hat and buttons cataloged; indices unverified — run `learn` |
 | MobiFlight Mega custom-firmware input | Buttons and encoders over USB serial; sketch and mapper path included |
 | SDL input, SimConnect aircraft detection and event sending | Written, **not yet run against real hardware/sim** |
-| Add-on aircraft L:vars / H:events (calculator code) | Modelled; sending needs the MobiFlight WASM module, not wired up |
+| Add-on aircraft L:vars / H:events (calculator code) | Implemented via the MobiFlight WASM module; untested against a running sim |
 | Reading or writing MSFS's own input profiles | Not planned for now (we act as the bridge instead) |
 | Switch state sync (toggle-only events can drift from the sim) | Not yet; prefer functions with explicit on/off events |
 

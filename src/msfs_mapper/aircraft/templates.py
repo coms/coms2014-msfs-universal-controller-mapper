@@ -45,6 +45,10 @@ def _applies(function_id: str, aircraft: AircraftInfo) -> bool:
         return aircraft.retractable_gear
     if function_id in {"throttle_1", "throttle_2"}:
         return aircraft.engine_count >= 2
+    if function_id == "throttle_3":
+        return aircraft.engine_count >= 3
+    if function_id == "throttle_4":
+        return aircraft.engine_count >= 4
     if function_id == "reversers":
         return aircraft.engine_type in {JET, TURBOPROP}
     if function_id == "throttle":

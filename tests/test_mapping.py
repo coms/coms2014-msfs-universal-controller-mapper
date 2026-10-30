@@ -83,3 +83,17 @@ def test_functions_without_hardware_are_reported(tmp_path):
     mapping = heuristic_map(setup, profile_from_template(C172))
     assert {"yaw", "brake_left", "brake_right"} == set(by_function(mapping))
     assert "throttle" in mapping.unassigned_functions
+
+
+def test_four_engine_jet_gets_four_throttles_on_bravo_levers(setup):
+    b747 = AircraftInfo(title="Boeing 747-8", engine_type=1, engine_count=4, retractable_gear=True)
+    m = by_function(heuristic_map(setup, profile_from_template(b747)))
+    assert [m[f"throttle_{n}"] for n in (1, 2, 3, 4)] == [
+        ("294B:1901", f"lever_{n}") for n in (1, 2, 3, 4)]
+
+
+def test_piston_twin_gets_split_throttles():
+    baron = AircraftInfo(title="Beechcraft Baron G58", engine_type=0, engine_count=2, retractable_gear=True)
+    functions = profile_from_template(baron).functions
+    assert {"throttle_1", "throttle_2"} <= set(functions)
+    assert not {"throttle", "throttle_3", "throttle_4"} & set(functions)

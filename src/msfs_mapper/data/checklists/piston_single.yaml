@@ -1,8 +1,9 @@
 id: piston_single
-description: Single-engine piston, fixed or retractable gear (C172, DA40, PA-28, Bonanza)
+description: Piston, fixed or retractable gear; twins get split throttles (C172, DA40, Bonanza, Baron)
 # Highest priority first. Axis functions are listed in cockpit order, left to right,
 # so they land on levers in the same order on a throttle quadrant.
-functions: [roll, pitch, yaw, brake_left, brake_right, throttle, propeller, mixture,
+functions: [roll, pitch, yaw, brake_left, brake_right, throttle, throttle_1, throttle_2,
+            throttle_3, throttle_4, propeller, mixture,
             elevator_trim, flaps, gear, parking_brake, landing_lights, taxi_lights,
             beacon, strobe_lights, nav_lights, battery, alternator, avionics, fuel_pump,
             pitot_heat, engine_autostart, ap_master, ap_heading, ap_nav, ap_approach,

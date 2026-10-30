@@ -57,6 +57,16 @@
   roles: [throttle, throttle.2, lever]
   preferred_kinds: [axis]
   actions: {axis: AXIS_THROTTLE2_SET}
+- id: throttle_3
+  name: Throttle engine 3
+  roles: [throttle, throttle.3, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_THROTTLE3_SET}
+- id: throttle_4
+  name: Throttle engine 4
+  roles: [throttle, throttle.4, lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_THROTTLE4_SET}
 - id: propeller
   name: Propeller RPM
   roles: [propeller, lever]
