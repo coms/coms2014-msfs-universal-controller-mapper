@@ -17,6 +17,8 @@ def templates() -> dict[str, dict]:
 
 
 def choose_template(aircraft: AircraftInfo) -> str:
+    if aircraft.category.strip().casefold() == "helicopter":
+        return "helicopter"
     if aircraft.engine_type == JET:
         return "jet_twin"
     if aircraft.engine_type == TURBOPROP:

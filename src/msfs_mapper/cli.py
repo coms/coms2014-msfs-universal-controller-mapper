@@ -116,6 +116,7 @@ def _aircraft_from_args(args: argparse.Namespace) -> AircraftInfo:
         return AircraftInfo(
             title=args.title, engine_type=args.engine_type, engine_count=args.engines,
             retractable_gear=args.retractable,
+            category=args.category,
         )
     from msfs_mapper.aircraft.detect import SimConnectAircraftSource
 
@@ -323,7 +324,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("map", help="build (or show the saved) mapping for an aircraft")
     p.add_argument("--title", help="aircraft title; omit to read it from the running sim")
-    p.add_argument("--engine-type", type=int, default=0, help="0 piston, 1 jet, 5 turboprop")
+    p.add_argument("--engine-type", type=int, default=0, help="0 piston, 1 jet, 3 helicopter turbine, 5 turboprop")
+    p.add_argument("--category", default="Airplane", help="aircraft category (e.g. Airplane, Helicopter)")
     p.add_argument("--engines", type=int, default=1)
     p.add_argument("--retractable", action="store_true", help="retractable landing gear")
     p.add_argument("--refresh", action="store_true", help="regenerate even if a mapping is saved")

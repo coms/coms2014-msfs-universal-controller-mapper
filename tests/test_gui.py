@@ -178,3 +178,12 @@ def test_position_edited_and_remembered(app):
     assert app.store.load_positions() == {app.setup.devices[pedals].key: "center/bottom"}
     # A fresh setup (e.g. after Refresh devices) keeps the user's choice.
     assert app.mapper().setup(app.detected).devices[pedals].position == "center/bottom"
+
+
+def test_helicopter_checkbox_uses_helicopter_template(app):
+    app.title.set("Robinson R44")
+    app.helicopter.set(True)
+    app.build_mapping(False)
+    app.wait_idle()
+    assert app.profile.template == "helicopter"
+    assert "Collective" in {r[0] for r in rows(app.mapping_tree)}

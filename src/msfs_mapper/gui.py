@@ -45,7 +45,7 @@ from msfs_mapper.vision.layout import POSITIONS
 
 log = logging.getLogger(__name__)
 
-ENGINE_TYPES = {"Piston": 0, "Jet": 1, "Turboprop": 5}
+ENGINE_TYPES = {"Piston": 0, "Jet": 1, "Turbine (heli)": 3, "Turboprop": 5}
 NOT_RECOGNISED = "(not recognised)"
 
 
@@ -124,6 +124,7 @@ class App:
         self.engine = tk.StringVar(value="Piston")
         self.engines = tk.IntVar(value=1)
         self.retractable = tk.BooleanVar()
+        self.helicopter = tk.BooleanVar()
         ttk.Label(aircraft, text="Title").grid(row=0, column=0, sticky="w", padx=4, pady=4)
         ttk.Entry(aircraft, textvariable=self.title, width=36).grid(row=0, column=1, sticky="we")
         ttk.Label(aircraft, text="Engine").grid(row=0, column=2, padx=(12, 4))
@@ -133,8 +134,9 @@ class App:
         ttk.Spinbox(aircraft, from_=1, to=4, textvariable=self.engines, width=3).grid(row=0, column=5)
         ttk.Checkbutton(aircraft, text="Retractable gear", variable=self.retractable).grid(
             row=0, column=6, padx=12)
+        ttk.Checkbutton(aircraft, text="Helicopter", variable=self.helicopter).grid(row=0, column=7)
         buttons = ttk.Frame(aircraft)
-        buttons.grid(row=1, column=0, columnspan=7, sticky="w", padx=4, pady=(0, 6))
+        buttons.grid(row=1, column=0, columnspan=8, sticky="w", padx=4, pady=(0, 6))
         ttk.Button(buttons, text="Read from sim", command=self.read_from_sim).pack(side="left")
         ttk.Button(buttons, text="Build mapping", command=lambda: self.build_mapping(False)).pack(
             side="left", padx=4)
@@ -620,6 +622,7 @@ class App:
             self.engine.set(engine)
             self.engines.set(info.engine_count)
             self.retractable.set(info.retractable_gear)
+            self.helicopter.set(info.category.strip().casefold() == "helicopter")
             self._sim_aircraft = info
             self.build_mapping(False)
 
@@ -634,6 +637,7 @@ class App:
             engine_type=ENGINE_TYPES[self.engine.get()],
             engine_count=int(self.engines.get()),
             retractable_gear=self.retractable.get(),
+            category="Helicopter" if self.helicopter.get() else "Airplane",
         )
 
     def build_mapping(self, refresh: bool) -> None:

@@ -30,8 +30,8 @@ USB input ──► Router ──► SimConnect key events ◄──────
 2. **Read the photo.** `scan-setup photo.jpg` sends the picture to Claude, which identifies the
    devices, where they sit relative to the seat, and any labels you stuck on them. Devices that are
    not in the catalog get a drafted control layout that you confirm with `learn`.
-3. **Know the aircraft.** When an aircraft loads, its title, engine type/count and gear type are
-   read over SimConnect. A checklist template (single piston, turboprop, twin jet) gives the
+3. **Know the aircraft.** When an aircraft loads, its title, category, engine type/count and gear type
+   are read over SimConnect. A checklist template (helicopter, single piston, turboprop, twin jet) gives the
    function list in priority order; Claude then tailors it to the specific aircraft and add-on
    (e.g. which functions a Fenix A320 drives differently).
 4. **Map.** A deterministic scorer matches functions to controls by role, control kind and
@@ -55,6 +55,7 @@ msfs-mapper scan-setup my-cockpit.jpg   # optional: positions + drafts for unkno
 msfs-mapper import-mobiflight cockpit.mcc  # leave MobiFlight panels' functions to MobiFlight
 msfs-mapper keyboard-knob --enable --drives hdg   # keyboard volume knob turns the heading bug
 msfs-mapper map --title "Cessna 172" --engine-type 0     # preview a mapping offline
+msfs-mapper map --title "Robinson R44" --category Helicopter
 msfs-mapper --no-ai gui                # open the desktop mapping interface
 msfs-mapper run --dry-run               # watch the sim, print what would be sent
 msfs-mapper run                         # the real thing
@@ -194,7 +195,7 @@ This is an early scaffold. What works and what doesn't yet:
 | MobiFlight export | Written and tested against the format as known; joystick input names (`Button N`, `Axis X`...) and the axis value range are **unverified** until opened in MobiFlight |
 | Keyboard volume knob | Key decoding, mapping and window tested; the Windows keyboard hook itself is **not yet run on Windows** |
 | Function catalog (≈40 functions, standard SimConnect key events) | Implemented |
-| Checklist templates: single piston, turboprop, twin jet | Implemented; helicopter/glider missing |
+| Checklist templates: helicopter, single piston, turboprop, twin jet | Implemented; glider missing |
 | Device catalog: Alpha, Bravo, Saitek pedals, T.16000M | **Button indices from community references, unverified** — run `learn` |
 | Logitech/Saitek Pro Flight Throttle Quadrant | 3 axes + 6 buttons cataloged; indices unverified — run `learn` |
 | VKB Gladiator NXT/EVO | Stick, twist, throttle, mini-stick, POV hat and buttons cataloged; indices unverified — run `learn` |

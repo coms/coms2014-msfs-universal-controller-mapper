@@ -20,6 +20,11 @@
   roles: [yaw, rudder, stick.twist]
   preferred_kinds: [axis]
   actions: {axis: AXIS_RUDDER_SET}
+- id: collective
+  name: Collective
+  roles: [collective, collective.lever]
+  preferred_kinds: [axis]
+  actions: {axis: AXIS_COLLECTIVE_SET}
 - id: brake_left
   name: Left toe brake
   roles: [brake.left]
@@ -131,6 +136,16 @@
   roles: [engine.start, magneto.start]
   preferred_kinds: [button]
   actions: {press: ENGINE_AUTO_START}
+- id: rotor_clutch
+  name: Rotor clutch
+  roles: [rotor.clutch, clutch, switch]
+  preferred_kinds: [switch, button]
+  actions: {press: ROTOR_CLUTCH_SWITCH_TOGGLE}
+- id: rotor_governor
+  name: Rotor governor
+  roles: [rotor.governor, governor, switch]
+  preferred_kinds: [switch, button]
+  actions: {press: ROTOR_GOV_SWITCH_TOGGLE}
 
 # --- Lights ------------------------------------------------------------------
 - id: beacon

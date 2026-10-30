@@ -1,0 +1,29 @@
+id: helicopter
+description: Helicopter with collective, cyclic and anti-torque controls
+functions: [roll, pitch, yaw, collective, rotor_clutch, rotor_governor,
+            elevator_trim, gear, parking_brake, landing_lights, taxi_lights,
+            beacon, strobe_lights, nav_lights, battery, alternator, avionics,
+            fuel_pump, pitot_heat, ap_master, ap_heading, ap_nav, ap_approach,
+            ap_altitude, ap_vs, heading_bug, ap_altitude_select, ap_vs_select,
+            ap_disconnect]
+checklists:
+  - phase: before_takeoff
+    items:
+      - {challenge: Parking brake, response: SET, function: parking_brake}
+      - {challenge: Rotor clutch, response: ENGAGE AS REQUIRED, function: rotor_clutch}
+      - {challenge: Rotor governor, response: "ON", function: rotor_governor}
+      - {challenge: Collective, response: FULL DOWN, function: collective}
+      - {challenge: Landing lights, response: AS REQUIRED, function: landing_lights}
+  - phase: takeoff
+    items:
+      - {challenge: Rotor RPM, response: IN OPERATING RANGE, function: rotor_governor}
+      - {challenge: Parking brake, response: RELEASE, function: parking_brake}
+      - {challenge: Collective, response: INCREASE SMOOTHLY, function: collective}
+  - phase: approach
+    items:
+      - {challenge: Collective, response: ADJUST FOR DESCENT, function: collective}
+      - {challenge: Landing lights, response: "ON", function: landing_lights}
+  - phase: landing
+    items:
+      - {challenge: Collective, response: REDUCE SMOOTHLY, function: collective}
+      - {challenge: Parking brake, response: SET AFTER LANDING, function: parking_brake}

@@ -38,6 +38,19 @@ def test_airliner_gets_split_throttles_gear_and_speedbrake(setup):
     assert len(controls) == len(set(controls)), "a control is bound twice"
 
 
+def test_helicopter_category_selects_helicopter_profile():
+    helicopter = AircraftInfo(
+        title="Robinson R44", engine_type=3, engine_count=1, category="Helicopter"
+    )
+    profile = profile_from_template(helicopter)
+    assert profile.template == "helicopter"
+    assert {"roll", "pitch", "yaw", "collective", "rotor_clutch", "rotor_governor"} <= set(
+        profile.functions
+    )
+    assert "throttle" not in profile.functions
+    assert profile.checklists
+
+
 def test_incompatible_kinds_never_bound(setup):
     from msfs_mapper.mapping.engine import functions_for
 
