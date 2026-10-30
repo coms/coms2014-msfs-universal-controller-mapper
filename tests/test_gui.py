@@ -167,3 +167,14 @@ def test_api_key_saved_and_used_by_claude(app, monkeypatch):
     app.save_api_key(None)
     assert app.store.load_api_key() is None
     assert not (app.store.home / "api_key").exists()
+
+
+def test_position_edited_and_remembered(app):
+    pedals = next(i for i, d in enumerate(app.setup.devices) if d.detected.name == PEDALS.name)
+    app.devices.selection_set(str(pedals))
+    app.edit_position()
+    app.set_position(pedals, "center/bottom")
+    assert app.devices.item(str(pedals), "values")[4] == "center/bottom"
+    assert app.store.load_positions() == {app.setup.devices[pedals].key: "center/bottom"}
+    # A fresh setup (e.g. after Refresh devices) keeps the user's choice.
+    assert app.mapper().setup(app.detected).devices[pedals].position == "center/bottom"

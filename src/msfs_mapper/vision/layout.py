@@ -11,7 +11,12 @@ from pydantic import BaseModel, Field
 from msfs_mapper.ai import Claude, image_block
 from msfs_mapper.models import ControllerSetup, DetectedDevice, DeviceDefinition, PhysicalControl
 
-POSITIONS = ["left", "center", "right", "floor", "overhead"]
+POSITIONS = [
+    "left/top", "left", "left/bottom",
+    "center/top", "center", "center/bottom",
+    "right/top", "right", "right/bottom",
+    "floor", "overhead",
+]
 
 
 class SeenDevice(BaseModel):

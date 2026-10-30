@@ -41,6 +41,7 @@ from msfs_mapper.models import (
 from msfs_mapper.pipeline import Mapper, generate_mapping  # noqa: F401 - generate_mapping re-exported
 from msfs_mapper.profiles.store import Store
 from msfs_mapper.runtime.keyboard import KEY_PRESETS, KEYBOARD_INDEX, KNOB_ROLES, PRESS_ROLES, choice_for
+from msfs_mapper.vision.layout import POSITIONS
 
 log = logging.getLogger(__name__)
 
@@ -115,6 +116,7 @@ class App:
             ("Device", "Connected via", "ID", "Recognised as", "Position", "Controls"), height=6,
             widths=(220, 100, 110, 220, 80, 160),
         )
+        self.devices.bind("<Double-1>", lambda _e: self.edit_position())
 
         aircraft = ttk.LabelFrame(self.root, text="Aircraft")
         aircraft.pack(fill="x", **pad)
@@ -277,15 +279,16 @@ class App:
 
     def show_devices(self) -> None:
         self.devices.delete(*self.devices.get_children())
-        for d in self.setup.devices:
+        # Our own devices get their setup index as row id, so a double-click can edit their position.
+        for i, d in enumerate(self.setup.devices):
             if d.detected.index == KEYBOARD_INDEX:
-                self.devices.insert("", "end", values=(
+                self.devices.insert("", "end", iid=str(i), values=(
                     d.detected.name, "Keyboard keys", KEY_PRESETS[self.store.load_keyboard().keys][0],
                     "Rotary knob", d.position, f"{len(d.controls)} controls"))
                 continue
             catalog = f"{d.definition.manufacturer} {d.definition.name}".strip() if d.definition else "unknown"
             verified = sum(c.verified for c in d.controls)
-            self.devices.insert("", "end", values=(
+            self.devices.insert("", "end", iid=str(i), values=(
                 d.detected.name, "USB", d.detected.usb_id or "?", catalog, d.position,
                 f"{verified}/{len(d.controls)} verified"))
         imported = self.store.load_mobiflight()
@@ -299,6 +302,37 @@ class App:
             self.devices.insert("", "end", values=(
                 module, "MobiFlight", serial, "MobiFlight panel", "-",
                 f"{len(inputs)} inputs, {handled} recognised"))
+
+    def edit_position(self) -> None:
+        selection = self.devices.selection()
+        if not selection or not selection[0].isdigit():
+            return  # MobiFlight panels have no position
+        index = int(selection[0])
+        device = self.setup.devices[index]
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Device position")
+        dialog.transient(self.root)
+        ttk.Label(dialog, text=f"{device.detected.name}\nWhere is it, seen from the pilot seat?").pack(
+            padx=12, pady=8, anchor="w")
+        choice = tk.StringVar(value=device.position)
+        ttk.Combobox(dialog, textvariable=choice, values=POSITIONS, state="readonly", width=20).pack(padx=12)
+
+        def save() -> None:
+            self.set_position(index, choice.get())
+            dialog.destroy()
+
+        ttk.Button(dialog, text="Save", command=save).pack(pady=8)
+
+    def set_position(self, index: int, position: str) -> None:
+        device = self.setup.devices[index]
+        device.position = position
+        positions = self.store.load_positions()
+        positions[device.key] = position
+        self.store.save_positions(positions)
+        self.show_devices()
+        # Only the AI mapping reads positions, and a saved mapping is reused as-is until rebuilt.
+        self.status.set(f"{device.detected.name}: {position}. Press Rebuild to re-map with AI.")
 
     def ask_photo(self) -> None:
         path = filedialog.askopenfilename(
