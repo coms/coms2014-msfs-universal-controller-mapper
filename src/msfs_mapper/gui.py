@@ -8,7 +8,10 @@ the Tk thread through a queue polled with `after`, because Tk widgets are not th
 from __future__ import annotations
 
 import logging
+import os
 import queue
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from collections.abc import Callable
@@ -74,10 +77,11 @@ class App:
 
         root.title("MSFS Controller Mapper")
         root.geometry("1000x700")
-        root.minsize(760, 520)
+        root.minsize(760, 620)
         self.use_ai = tk.BooleanVar(value=use_ai)
         self.status = tk.StringVar(value="Ready")
         self._build()
+        self.show_mobiflight()  # a project imported in an earlier session shows straight away
         self.show_export()
         root.after(100, self._poll)
         self.refresh_devices()
@@ -85,13 +89,15 @@ class App:
     # ------------------------------------------------------------------ layout
 
     def _build(self) -> None:
+        # Pack order matters: Tk gives space to widgets in packing order and squeezes out the
+        # last ones when the window is small. Fixed-size rows go first, expanding tables last.
         pad = {"padx": 8, "pady": 4}
+        ttk.Label(self.root, textvariable=self.status, relief="sunken", anchor="w").pack(
+            fill="x", side="bottom")
         bar = ttk.Frame(self.root)
         bar.pack(fill="x", **pad)
         ttk.Button(bar, text="Refresh devices", command=self.refresh_devices).pack(side="left")
         ttk.Button(bar, text="Scan setup photo…", command=self.ask_photo).pack(side="left", padx=4)
-        ttk.Button(bar, text="Import MobiFlight project…", command=self.ask_mobiflight).pack(side="left")
-        ttk.Button(bar, text="Clear MobiFlight", command=self.clear_mobiflight).pack(side="left", padx=4)
         ttk.Button(bar, text="Keyboard knob…", command=self.open_knob_dialog).pack(side="left")
         ttk.Button(bar, text="Configure Mega pins…", command=self.configure_mega).pack(side="left", padx=4)
 
@@ -99,7 +105,7 @@ class App:
         hardware.pack(fill="x", **pad)
         self.devices = self._tree(
             hardware, ("name", "kind", "id", "catalog", "position", "controls"),
-            ("Device", "Connected via", "ID", "Recognised as", "Position", "Controls"), height=6,
+            ("Device", "Connected via", "ID", "Recognised as", "Position", "Controls"), height=5,
             widths=(220, 100, 110, 220, 80, 160),
         )
 
@@ -131,40 +137,61 @@ class App:
         tabs.pack(fill="both", expand=True, **pad)
         mapping_tab = ttk.Frame(tabs)
         tabs.add(mapping_tab, text="Mapping")
+        ttk.Button(mapping_tab, text="Lock / unlock selected", command=self.toggle_lock).pack(
+            side="bottom", anchor="w", pady=4)
         self.mapping_tree = self._tree(
             mapping_tab, ("function", "device", "control", "source"),
             ("Function", "Assigned to", "Control", "Source"),
         )
-        ttk.Button(mapping_tab, text="Lock / unlock selected", command=self.toggle_lock).pack(
-            anchor="w", pady=4)
 
         mf_tab = ttk.Frame(tabs)
-        tabs.add(mf_tab, text="MobiFlight inputs")
+        tabs.add(mf_tab, text="MobiFlight")
+        self._build_mobiflight_settings(mf_tab)
+        ttk.Label(mf_tab, text="Double-click an input to set which function it operates.").pack(
+            side="bottom", anchor="w", pady=4)
         self.mf_tree = self._tree(
             mf_tab, ("module", "input", "type", "description", "function", "command"),
-            ("Panel", "Input", "Kind", "Description", "Function", "Command"),
+            ("Panel", "Input", "Kind", "Description", "Function", "Command"), height=6,
         )
         self.mf_tree.bind("<Double-1>", lambda _e: self.edit_mobiflight_function())
-        self.share_mf = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            mf_tab, variable=self.share_mf, command=lambda: self.set_mobiflight_sharing(self.share_mf.get()),
-            text="Also map MobiFlight buttons and knobs to my other buttons and knobs "
-                 "(switches and levers are never doubled)",
-        ).pack(anchor="w", pady=(4, 0))
-        self.export_mf = tk.BooleanVar(value=self.store.load_settings().export_mobiflight)
-        ttk.Checkbutton(
-            mf_tab, variable=self.export_mf, command=lambda: self.set_export(self.export_mf.get()),
-            text="Write my automatic mapping into a MobiFlight project, so MobiFlight runs it",
-        ).pack(anchor="w")
-        self.export_info = tk.StringVar(value="")
-        ttk.Label(mf_tab, textvariable=self.export_info, foreground="gray", wraplength=900,
-                  justify="left").pack(anchor="w", padx=20)
-        ttk.Label(mf_tab, text="Double-click an input to set which function it operates.").pack(
-            anchor="w", pady=4)
         self.tabs = tabs
 
-        ttk.Label(self.root, textvariable=self.status, relief="sunken", anchor="w").pack(
-            fill="x", side="bottom")
+    def _build_mobiflight_settings(self, parent: ttk.Frame) -> None:
+        """Import and export settings for MobiFlight Connector, always visible above the table."""
+        box = ttk.LabelFrame(parent, text="MobiFlight Connector")
+        box.pack(fill="x", padx=4, pady=4)
+        box.columnconfigure(2, weight=1)
+        ttk.Button(box, text="Import project…", command=self.ask_mobiflight).grid(
+            row=0, column=0, padx=4, pady=4, sticky="w")
+        ttk.Button(box, text="Clear", command=self.clear_mobiflight).grid(row=0, column=1, pady=4, sticky="w")
+        self.project_info = tk.StringVar()
+        ttk.Label(box, textvariable=self.project_info).grid(row=0, column=2, sticky="w", padx=8)
+
+        self.share_mf = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            box, variable=self.share_mf, command=lambda: self.set_mobiflight_sharing(self.share_mf.get()),
+            text="Also map MobiFlight buttons and knobs to my other buttons and knobs "
+                 "(switches and levers are never doubled)",
+        ).grid(row=1, column=0, columnspan=3, sticky="w", padx=4)
+
+        self.export_mf = tk.BooleanVar(value=self.store.load_settings().export_mobiflight)
+        ttk.Checkbutton(
+            box, variable=self.export_mf, command=lambda: self.set_export(self.export_mf.get()),
+            text="Export my automatic mapping into a MobiFlight project, so MobiFlight runs it",
+        ).grid(row=2, column=0, columnspan=3, sticky="w", padx=4, pady=(4, 0))
+        folder = ttk.Frame(box)
+        folder.grid(row=3, column=0, columnspan=3, sticky="we", padx=(24, 4))
+        # Buttons before the path, so a long path can't push them out of the window.
+        ttk.Label(folder, text="Export folder:").pack(side="left")
+        ttk.Button(folder, text="Change…", command=self.ask_export_folder).pack(side="left", padx=4)
+        ttk.Button(folder, text="Open", command=self.open_export_folder).pack(side="left")
+        self.export_folder = tk.StringVar()
+        ttk.Label(folder, textvariable=self.export_folder).pack(side="left", padx=8)
+        self.export_info = tk.StringVar(value="")
+        info = ttk.Label(box, textvariable=self.export_info, foreground="gray", justify="left")
+        info.grid(row=4, column=0, columnspan=3, sticky="we", padx=(24, 4), pady=(2, 6))
+        # Wrap to the panel's width so long paths never push the panel wider than the window.
+        box.bind("<Configure>", lambda e: info.configure(wraplength=max(e.width - 40, 200)))
 
     def _tree(
         self, parent: tk.Widget, columns: tuple, headings: tuple, height: int = 10,
@@ -458,6 +485,7 @@ class App:
         self.mf_tree.delete(*self.mf_tree.get_children())
         imported = self.store.load_mobiflight()
         self.share_mf.set(bool(imported and imported.allow_shared))
+        self.project_info.set(f"Project: {imported.project}" if imported else "No project imported")
         names = {fid: f.name for fid, f in self._functions().items()}
         for i, b in enumerate(imported.bindings if imported else []):
             function = names.get(b.function, b.function) if b.function else NOT_RECOGNISED
@@ -627,7 +655,41 @@ class App:
         else:
             self.show_export()
 
+    def export_dir(self) -> Path:
+        folder = self.store.load_settings().export_folder
+        return Path(folder) if folder else self.store.home / "mobiflight"
+
+    def ask_export_folder(self) -> None:
+        folder = filedialog.askdirectory(
+            parent=self.root, title="Folder for exported MobiFlight projects",
+            initialdir=str(self.export_dir()), mustexist=False)
+        if folder:
+            self.set_export_folder(Path(folder))
+
+    def set_export_folder(self, folder: Path | None) -> None:
+        """None goes back to the default folder. Re-exports so the project lands there."""
+        settings = self.store.load_settings().model_copy(
+            update={"export_folder": str(folder) if folder else None})
+        self.store.save_settings(settings)
+        self.status.set(f"MobiFlight projects will be written to {self.export_dir()}")
+        if self.profile:
+            self.build_mapping(False)
+        else:
+            self.show_export()
+
+    def open_export_folder(self) -> None:
+        folder = self.export_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            if sys.platform == "win32":
+                os.startfile(folder)  # noqa: S606 - opens Explorer on a folder we own
+            else:
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(folder)])
+        except OSError as exc:
+            self.alert(f"Could not open {folder}:\n\n{exc}", error=True)
+
     def show_export(self) -> None:
+        self.export_folder.set(str(self.export_dir()))
         result = self.last_export
         if not self.export_mf.get():
             text = "Off: `msfs-mapper run` drives all your controls itself."
