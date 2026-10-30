@@ -156,3 +156,14 @@ def test_mega_pins_dialog(app):
         app.save_mega_pins("22", "4, 5")  # not interrupt pins
     app.configure_mega()  # builds without errors, prefilled from the saved file
     app.root.update()
+
+
+def test_api_key_saved_and_used_by_claude(app, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    app.save_api_key("  sk-ant-test  \n")
+    assert app.store.load_api_key() == "sk-ant-test"
+    assert app.claude_factory().client.api_key == "sk-ant-test"
+    app.open_api_key_dialog()
+    app.save_api_key(None)
+    assert app.store.load_api_key() is None
+    assert not (app.store.home / "api_key").exists()

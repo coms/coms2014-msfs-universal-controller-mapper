@@ -7,13 +7,17 @@ the Tk thread through a queue polled with `after`, because Tk widgets are not th
 
 from __future__ import annotations
 
+import ctypes
 import logging
+import os
 import queue
+import sys
 import threading
 import tkinter as tk
 from collections.abc import Callable
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from tkinter import font as tkfont
 from typing import Any
 
 import anthropic
@@ -56,13 +60,13 @@ class App:
         root: tk.Tk,
         store: Store,
         detect: Callable[[], list[DetectedDevice]] = detect_usb,
-        claude_factory: Callable[[], Claude] = Claude,
+        claude_factory: Callable[[], Claude] | None = None,
         use_ai: bool = True,
     ):
         self.root = root
         self.store = store
         self.detect = detect
-        self.claude_factory = claude_factory
+        self.claude_factory = claude_factory or (lambda: Claude(api_key=store.load_api_key()))
         self.detected: list[DetectedDevice] = []
         self.setup = ControllerSetup()
         self.profile: AircraftProfile | None = None
@@ -72,15 +76,23 @@ class App:
         self._results: queue.Queue[Callable[[], None]] = queue.Queue()
         self._busy = 0
 
+        # Pixel sizes below are written for 96 DPI; scale them to the display's real DPI.
+        self.scale = max(1.0, root.winfo_fpixels("1i") / 96)
         root.title("MSFS Controller Mapper")
-        root.geometry("1000x700")
-        root.minsize(760, 520)
+        root.geometry(f"{self.px(1000)}x{self.px(700)}")
+        root.minsize(self.px(800), self.px(520))
+        # Treeview rows have a fixed pixel height; size them to the font so text isn't clipped.
+        line = tkfont.nametofont("TkDefaultFont").metrics("linespace")
+        ttk.Style(root).configure("Treeview", rowheight=line + self.px(4))
         self.use_ai = tk.BooleanVar(value=use_ai)
         self.status = tk.StringVar(value="Ready")
         self._build()
         self.show_export()
         root.after(100, self._poll)
         self.refresh_devices()
+
+    def px(self, pixels: int) -> int:
+        return round(pixels * self.scale)
 
     # ------------------------------------------------------------------ layout
 
@@ -94,6 +106,7 @@ class App:
         ttk.Button(bar, text="Clear MobiFlight", command=self.clear_mobiflight).pack(side="left", padx=4)
         ttk.Button(bar, text="Keyboard knob…", command=self.open_knob_dialog).pack(side="left")
         ttk.Button(bar, text="Configure Mega pins…", command=self.configure_mega).pack(side="left", padx=4)
+        ttk.Button(bar, text="API key…", command=self.open_api_key_dialog).pack(side="left")
 
         hardware = ttk.LabelFrame(self.root, text="Hardware")
         hardware.pack(fill="x", **pad)
@@ -175,7 +188,7 @@ class App:
         tree = ttk.Treeview(frame, columns=columns, show="headings", height=height)
         for i, (column, heading) in enumerate(zip(columns, headings)):
             tree.heading(column, text=heading)
-            tree.column(column, width=widths[i] if widths else 120, stretch=True)
+            tree.column(column, width=self.px(widths[i] if widths else 120), stretch=True)
         scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scroll.set)
         tree.pack(side="left", fill="both", expand=True)
@@ -305,6 +318,50 @@ class App:
                 self.alert("\n".join(messages))
 
         self.run_task("Analysing setup photo", lambda: mapper.scan_photo(photo, self.detected), done)
+
+    # ----------------------------------------------------------------- API key
+
+    def open_api_key_dialog(self) -> None:
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Claude API key")
+        dialog.transient(self.root)
+        frame = ttk.Frame(dialog, padding=12)
+        frame.pack(fill="both", expand=True)
+
+        if self.store.load_api_key():
+            current = "A key is saved in this app."
+        elif os.environ.get("ANTHROPIC_API_KEY"):
+            current = "Using ANTHROPIC_API_KEY from the environment."
+        else:
+            current = "No key saved here; `ant auth login` is used if you have run it."
+        key = tk.StringVar()
+        ttk.Label(frame, text=current).grid(row=0, column=0, columnspan=3, sticky="w")
+        entry = ttk.Entry(frame, textvariable=key, show="•", width=52)
+        entry.grid(row=1, column=0, columnspan=3, sticky="we", pady=8)
+        entry.focus_set()
+        ttk.Label(frame, foreground="gray", wraplength=420, text=(
+            "Create a key at console.anthropic.com. It is stored in plain text under "
+            f"{self.store.home} and takes priority over ANTHROPIC_API_KEY.")).grid(
+            row=2, column=0, columnspan=3, sticky="w", pady=(0, 8))
+
+        def save() -> None:
+            if not key.get().strip():
+                self.alert("Paste a key first, or use Remove to forget the saved one.")
+                return
+            self.save_api_key(key.get())
+            dialog.destroy()
+
+        def remove() -> None:
+            self.save_api_key(None)
+            dialog.destroy()
+
+        ttk.Button(frame, text="Remove saved key", command=remove).grid(row=3, column=0, sticky="w")
+        ttk.Button(frame, text="Save", command=save).grid(row=3, column=2, sticky="e")
+        entry.bind("<Return>", lambda _event: save())
+
+    def save_api_key(self, key: str | None) -> None:
+        self.store.save_api_key(key)
+        self.status.set("API key saved" if key else "Saved API key removed")
 
     # ----------------------------------------------------------- keyboard knob
 
@@ -650,8 +707,26 @@ class App:
         return functions_for(self.profile) if self.profile else function_catalog()
 
 
+def _enable_dpi_awareness() -> None:
+    """Stop Windows from bitmap-stretching (blurring) the window when display scaling is above 100%.
+
+    Must run before the first Tk window exists. System-aware rather than per-monitor, because Tk 8.6
+    doesn't rescale itself on WM_DPICHANGED; Windows still stretches it on a monitor with other DPI.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+    except (AttributeError, OSError):
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()  # pre-Windows 8.1
+        except (AttributeError, OSError):
+            pass
+
+
 def launch_gui(home: Path | None = None, no_ai: bool = False) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    _enable_dpi_awareness()
     root = tk.Tk()
     App(root, Store(home), use_ai=not no_ai)
     root.mainloop()

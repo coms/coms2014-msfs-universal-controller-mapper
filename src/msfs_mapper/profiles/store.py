@@ -43,6 +43,17 @@ class Store:
     def save_settings(self, settings: Settings) -> Path:
         return _write(self.home / "settings.json", settings.model_dump_json(indent=2))
 
+    def load_api_key(self) -> str | None:
+        """Claude API key entered in the GUI; kept out of settings.json so that can be shared."""
+        path = self.home / "api_key"
+        return (path.read_text("utf-8").strip() or None) if path.exists() else None
+
+    def save_api_key(self, key: str | None) -> None:
+        if key:
+            _write(self.home / "api_key", key.strip())
+        else:
+            (self.home / "api_key").unlink(missing_ok=True)
+
     def load_keyboard(self) -> KeyboardKnob:
         path = self.home / "keyboard.json"
         return KeyboardKnob.model_validate_json(path.read_text("utf-8")) if path.exists() else KeyboardKnob()

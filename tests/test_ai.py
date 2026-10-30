@@ -78,3 +78,53 @@ def test_drafted_device_drops_out_of_range_controls():
     assert [c.id for c in definition.controls] == ["b1"]
     assert definition.controls[0].verified is False
     assert definition.usb_id == "1234:0001"
+
+
+def _decode(block):
+    import base64
+    import io
+
+    from PIL import Image
+
+    return Image.open(io.BytesIO(base64.b64decode(block["source"]["data"])))
+
+
+def test_image_block_downscales_large_photos(tmp_path):
+    from PIL import Image
+
+    from msfs_mapper.ai import MAX_IMAGE_EDGE, image_block
+
+    path = tmp_path / "setup.png"
+    Image.new("RGBA", (4000, 3000), (10, 20, 30, 255)).save(path)
+    block = image_block(path)
+    assert block["source"]["media_type"] == "image/jpeg"
+    assert _decode(block).size == (MAX_IMAGE_EDGE, MAX_IMAGE_EDGE * 3 // 4)
+
+
+def test_image_block_keeps_small_photos_and_applies_exif_rotation(tmp_path):
+    from PIL import Image
+
+    from msfs_mapper.ai import image_block
+
+    path = tmp_path / "setup.jpg"
+    exif = Image.Exif()
+    exif[0x0112] = 6  # orientation: rotate 90° clockwise to display
+    Image.new("RGB", (800, 600)).save(path, exif=exif)
+    assert _decode(image_block(path)).size == (600, 800)
+
+
+def test_image_block_rejects_unreadable_file(tmp_path):
+    from msfs_mapper.ai import image_block
+
+    path = tmp_path / "broken.jpg"
+    path.write_bytes(b"not an image")
+    with pytest.raises(AIError):
+        image_block(path)
+
+
+def test_saved_api_key_overrides_environment(monkeypatch):
+    from msfs_mapper.ai import Claude
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-env")
+    assert Claude(api_key="sk-ant-saved").client.api_key == "sk-ant-saved"
+    assert Claude().client.api_key == "sk-ant-env"

@@ -30,7 +30,8 @@ def _detect():
 
 
 def _mapper(args: argparse.Namespace) -> Mapper:
-    return Mapper(Store(args.home), None if args.no_ai else Claude())
+    store = Store(args.home)
+    return Mapper(store, None if args.no_ai else Claude(api_key=store.load_api_key()))
 
 
 def cmd_devices(args: argparse.Namespace) -> int:
@@ -47,7 +48,8 @@ def cmd_devices(args: argparse.Namespace) -> int:
 
 
 def cmd_scan_setup(args: argparse.Namespace) -> int:
-    setup, messages = Mapper(Store(args.home), Claude()).scan_photo(args.photo, _detect())
+    store = Store(args.home)
+    setup, messages = Mapper(store, Claude(api_key=store.load_api_key())).scan_photo(args.photo, _detect())
     for d in setup.devices:
         print(f"{d.detected.name}: {d.position}")
     for message in messages:
